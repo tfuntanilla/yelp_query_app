@@ -15,12 +15,22 @@ import java.util.TreeSet;
 
 import org.json.*;
 
+/**
+ * TODO:
+ * How to provide db information such as credentials
+ * How to provide jars
+ * 
+ * @author tfuntanilla
+ *
+ */
 public class Populate {
 
 	
 	private static final int DATASETS = 4;
 	private static final String HOST = "localhost";
 	private static final String SERVICE_NAME = "orcl";
+	private static final String USERNAME = "hr";
+	private static final String PASSWORD = "oracle";
 	private static final int PORT = 1521;
 	private static final String[] TABLES = {
 			"business",
@@ -28,12 +38,12 @@ public class Populate {
 			"bu_category",
 			"subcategory",
 			"bu_subcategory",
+			"attribute",
 			"bu_attribute",
 			"yelp_user",
 			"review",
 			"friend",
-			"elite_years",
-			"checkin"
+			"elite_years"
 	}; 
 	private static final String[] CATEGORIES = {
 			"Active Life",
@@ -82,16 +92,13 @@ public class Populate {
 			System.out.println("Exception while loading oracle jdbc driver: " + e.getMessage());
 		}
 
-		// TODO Determine what to do with hardcoded variables
 		// 2. Define the connection URL
 		String oracleURL = "jdbc:oracle:thin:@//" + HOST + ":" + PORT + "/" + SERVICE_NAME;
 
 		// 3. Establish the Connection
-		String username = "hr";
-		String password = "oracle";
 		Connection connection = null;
 		try {
-			connection = DriverManager.getConnection(oracleURL, username, password);
+			connection = DriverManager.getConnection(oracleURL, USERNAME, PASSWORD);
 		} catch (SQLException e) {
 			System.out.println("Exception while establishing connection: " + e.getMessage());
 		}
@@ -116,17 +123,16 @@ public class Populate {
 			stmt = connection.createStatement();
 			for (String tName : TABLES) {
 				String query = "TRUNCATE TABLE " + tName;
-				stmt.executeUpdate(query);
+				stmt.executeQuery(query);
 			}
 		} catch (SQLException e) {
 			System.out.println("Exception on TRUNCATE: " + e.getMessage());
 		}
 
-		// TODO
 		// 6. Parse data and create insert statements		
 		for (int i = 0; i < DATASETS; i++) {
 
-			System.out.println("Parsing and generating INSERT statements for " + args[i]);
+			System.out.println("Parsing " + args[i]);
 			URL path = Populate.class.getResource(args[i]);
 			File json = new File(path.getFile());
 			BufferedReader reader = null;
@@ -140,20 +146,22 @@ public class Populate {
 					case(0): 
 						insertIntoBusiness(connection, line, totalBusiness);
 						totalBusiness += 1;
-					break;
+						break;
 					case(1):
 						insertIntoReview(connection, line);
-					break;
+						break;
 					case(2):
-						insertIntoCheckin(line);
+						break;
 					case(3):
-						insertIntoUser(line);
+						insertIntoUser(connection, line);
+						break;
 					default:
 						break;
 					}
 				}
-				insertIntoCategory();
-				insertIntoSubCategory();
+				insertIntoCategory(connection);
+				insertIntoSubCategory(connection);
+				insertIntoAttribute(connection);
 			} catch (FileNotFoundException e) {
 				System.out.println("File '" + path.getFile() + "' not found.");
 				System.exit(-1);
@@ -201,39 +209,62 @@ public class Populate {
 		return isExists;
 	}
 
-	private static String insertIntoCategory() {
+	private static void insertIntoCategory(Connection connection) {
 		
-		System.out.println("Generating INSERT statements for table CATEGORY");
-		String insert = "INSERT ALL\n";
+		String insertStmt = "INSERT INTO category VALUES(?,?)";
 		for (int i = 1; i <= CATEGORIES.length; i++) {
-			insert += "INTO category VALUES(";
-			insert += i + ",'" + CATEGORIES[i-1] + "'";
-			insert += ")\n";
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, i);
+				preparedStmt.setString(2, CATEGORIES[i-1]);
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO category: " + e.getMessage());
+			}
 		}
-		insert += "SELECT * FROM dual;";
-		// System.out.println(insert);
-		return insert;
+
 	}
 	
-	private static String insertIntoSubCategory() {
+	private static void insertIntoSubCategory(Connection connection) {
 		
-		System.out.println("Generating INSERT statements for table SUBCATEGORY");
-		String insert = "INSERT ALL\n";
+		String insertStmt = "INSERT INTO subcategory VALUES(?,?)";
 		Iterator<String> it = SUBCATEGORIES.iterator();
 		int c = 0;
 		while (it.hasNext()) {
-			insert += "INTO subcategory VALUES(";
-			insert += (c+=1) + ",'" + it.next() + "')\n";
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, (c += 1));
+				preparedStmt.setString(2, it.next());
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO subcategory: " + e.getMessage());
+			}
 		}
-		insert += "SELECT * FROM dual;";
-		// System.out.println(insert);
-		return insert;
+		
+	}
+	
+	private static void insertIntoAttribute(Connection connection) {
+		
+		String insertStmt = "INSERT INTO attribute VALUES(?,?)";
+		Iterator<String> it = ATTRIBUTES.iterator();
+		int c = 0;
+		while (it.hasNext()) {
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, (c += 1));
+				preparedStmt.setString(2, it.next());
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO attribute: " + e.getMessage());
+			}
+		}
 		
 	}
 
-	private static String insertIntoBusiness(Connection connection, String line, int count) {
+	private static void insertIntoBusiness(Connection connection, String line, int count) {
 
 		JSONObject json = new JSONObject(line);
+		
 		String id = json.getString("business_id");
 		String fullAddress = json.getString("full_address");
 		boolean openBool = json.getBoolean("open");
@@ -263,34 +294,57 @@ public class Populate {
 			preparedStmt.setInt(9, reviewCount);
 			preparedStmt.setDouble(10, stars);
 			preparedStmt.setString(11, type);
+			preparedStmt.executeQuery();
 		} catch (SQLException e) {
 			System.out.println("Exception while creating prepared statement for INSERT INTO business: " + e.getMessage());
 		}
 		
-		String insert = "INSERT INTO business VALUES";
-		insert += "('" + id + "','" + name + "','" + fullAddress + "','" + city + "','" + state + "'," + latitude + 
-				"," + longitude + ",'" + open + "'," + reviewCount + "," + stars + ",'" + type + "');\n";
-		
 		for (int i = 0; i < buCategories.length(); i++) {
 			boolean isACategory = false;
 			String cat = buCategories.get(i).toString();
+			
 			for (int j = 0; j < CATEGORIES.length; j++) {
 				if (cat.equals(CATEGORIES[j])) {
-					insert += "INSERT INTO bu_category VALUES";
-					insert += "(" + count + ",'" + id + "','" + cat + "');\n";
-					isACategory = true;
-					break;
+					insertStmt = "INSERT INTO bu_category VALUES(?,?,?)";
 				}
 			}
+			
 			if (!isACategory) {
+				insertStmt = "INSERT INTO bu_subcategory VALUES(?,?,?)";
 				SUBCATEGORIES.add(cat);
-				insert += "INSERT INTO bu_subcategory VALUES";
-				insert += "(" + count + ",'" + id + "','" + buCategories.get(i).toString() + "');\n";
+			}
+			
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, (count + 1));
+				preparedStmt.setString(2, id);
+				preparedStmt.setString(3, cat);
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				if (isACategory) {
+					System.out.println("Exception while creating prepared statement for INSERT INTO bu_category: " + e.getMessage());
+				} else {
+					System.out.println("Exception while creating prepared statement for INSERT INTO bu_subcategory: " + e.getMessage());
+				}
 			}
 		}
 		
-		//System.out.println(insert);
-		return insert;
+		insertStmt = "INSERT INTO bu_attribute VALUES(?,?,?,?)";
+		for(int i = 0; i < attributes.names().length(); i++){
+		    String key = attributes.names().getString(i);
+		    String value = (String) attributes.get(attributes.names().getString(i));
+		    ATTRIBUTES.add(key);
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, (count + 1));
+				preparedStmt.setString(2, id);
+				preparedStmt.setString(3, key);
+				preparedStmt.setString(4, value);
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO bu_attribute: " + e.getMessage());
+			}
+		}
 		
 	}
 
@@ -329,27 +383,110 @@ public class Populate {
 			preparedStmt.setInt(8, funny);
 			preparedStmt.setInt(9, cool);
 			preparedStmt.setString(10, type);
+			preparedStmt.executeQuery();
 		} catch (SQLException e) {
 			System.out.println("Exception while creating prepared statement for INSERT INTO review: " + e.getMessage());
 		}
 		
-		// TODO execute
 	}
 
-	private static String insertIntoCheckin(String line) {
+	private static void insertIntoUser(Connection connection, String line) {
+		
 		JSONObject json = new JSONObject(line);
-		String buId = json.getString("business_id");
-		String checkin_info = json.getJSONObject("checkin_info").toString();
-		String insert = "";
-		return insert;
 
-	}
-
-	private static String insertIntoUser(String line) {
-		JSONObject json = new JSONObject(line);
-		String insert = "";
-		return insert;
-
+		String id = json.getString("user_id");
+		String name = json.getString("name");
+		
+		String yelpingSince = json.getString("yelping_since");
+		Date date = null;
+		try {
+			date = new Date(new SimpleDateFormat("yyyy-MM").parse(yelpingSince).getTime());
+		} catch (ParseException e1) {
+			System.out.println("Exception while parsing review date: " + e1.getMessage());
+		}
+		
+		int reviewCount = json.getInt("review_count");
+		
+		JSONObject votes = json.getJSONObject("votes");
+		int useful = votes.getInt("useful");
+		int funny = votes.getInt("funny");
+		int cool = votes.getInt("cool");
+		
+		int fans = votes.getInt("fans");	
+		float averageStars = json.getFloat("average_stars");
+		
+		JSONObject compliments = json.getJSONObject("compliments");
+		int complimentHot = compliments.getInt("hot");
+		int complimentMore = compliments.getInt("more");
+		int complimentProfile = compliments.getInt("profile");
+		int complimentCute = compliments.getInt("cute");
+	    int complimentList = compliments.getInt("list");
+		int complimentNote = compliments.getInt("note");
+		int complimentPlain = compliments.getInt("plain");
+		int complimentCool = compliments.getInt("cool");
+		int complimentFunny = compliments.getInt("funny");
+		int complimentWriter = compliments.getInt("writer");
+		int complimentPhotos = compliments.getInt("photos");
+		String type = json.getString("type");
+		
+		JSONArray friends = json.getJSONArray("friends");
+		JSONArray elite = json.getJSONArray("elite");
+		
+		String insertStmt = "INSERT INTO yelp_user VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		try {
+			PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+			preparedStmt.setString(1, id);
+			preparedStmt.setString(2, name);
+			preparedStmt.setDate(3, date);
+			preparedStmt.setInt(4, reviewCount);
+			preparedStmt.setInt(5, useful);
+			preparedStmt.setInt(6, funny);
+			preparedStmt.setInt(7, cool);
+			preparedStmt.setInt(8, fans);
+			preparedStmt.setFloat(9, averageStars);
+			preparedStmt.setInt(10, complimentHot);
+			preparedStmt.setInt(11, complimentMore);
+			preparedStmt.setInt(11, complimentProfile);
+			preparedStmt.setInt(12, complimentCute);
+			preparedStmt.setInt(13, complimentList);
+			preparedStmt.setInt(14, complimentNote);
+			preparedStmt.setInt(15, complimentPlain);
+			preparedStmt.setInt(16, complimentCool);
+			preparedStmt.setInt(17, complimentFunny);
+			preparedStmt.setInt(18, complimentWriter);
+			preparedStmt.setInt(19, complimentPhotos);
+			preparedStmt.setString(20, type);
+			preparedStmt.executeQuery();
+		} catch (SQLException e) {
+			System.out.println("Exception while creating prepared statement for INSERT INTO yelp_user: " + e.getMessage());
+		}
+		
+		for (int i = 0; i < friends.length(); i++) {
+			insertStmt = "INSERT INTO friend VALUES(?,?,?)";
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, (i += 1));
+				preparedStmt.setString(2, id);
+				preparedStmt.setString(3, friends.getString(i));
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO friend: " + e.getMessage());
+			}
+		}
+		
+		for (int i = 0; i < elite.length(); i++) {
+			insertStmt = "INSERT INTO elite_years VALUES(?,?,?)";
+			try {
+				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, (i += 1));
+				preparedStmt.setString(2, id);
+				preparedStmt.setString(3, String.valueOf(elite.getInt(i)));
+				preparedStmt.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO elite_years: " + e.getMessage());
+			}
+		}
+		
 	}
 
 }
