@@ -25,6 +25,9 @@ import org.json.*;
  */
 public class Populate {
 
+	private static int subcatId = 0;
+	private static int catId = 0;
+	private static int attrId = 0;
 	
 	private static final int DATASETS = 4;
 	private static final String HOST = "localhost";
@@ -119,20 +122,32 @@ public class Populate {
 
 		// 5. Delete all rows from all tables before populating
 		Statement stmt = null;
+		ResultSet rs = null;
 		try {
 			stmt = connection.createStatement();
 			for (String tName : TABLES) {
 				String query = "TRUNCATE TABLE " + tName;
-				stmt.executeQuery(query);
+				rs = stmt.executeQuery(query);
 			}
 		} catch (SQLException e) {
 			System.out.println("Exception on TRUNCATE: " + e.getMessage());
+		} finally {
+			try {
+				stmt.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing prepared statement: " + e.getMessage());
+			}
+			try {
+				rs.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing result set: " + e.getMessage());
+			}
 		}
 
 		// 6. Parse data and create insert statements		
 		for (int i = 0; i < DATASETS; i++) {
 
-			System.out.println("Parsing " + args[i]);
+			System.out.println("Parsing " + args[i] + "... please wait.");
 			URL path = Populate.class.getResource(args[i]);
 			File json = new File(path.getFile());
 			BufferedReader reader = null;
@@ -145,15 +160,23 @@ public class Populate {
 					switch(i) {
 					case(0): 
 						insertIntoBusiness(connection, line, totalBusiness);
+						try {
+							connection.commit();
+						} catch (SQLException e) {
+							System.out.println("Exception while committing: " + e.getMessage());
+						}
+						insertIntoBuCatSubcat(connection, line);
+						insertIntoBuAttribute(connection, line);
 						totalBusiness += 1;
 						break;
 					case(1):
-						insertIntoReview(connection, line);
+						// test(connection);
+						// insertIntoReview(connection, line);
 						break;
 					case(2):
 						break;
 					case(3):
-						insertIntoUser(connection, line);
+						// insertIntoUser(connection, line);
 						break;
 					default:
 						break;
@@ -213,13 +236,20 @@ public class Populate {
 		
 		String insertStmt = "INSERT INTO category VALUES(?,?)";
 		for (int i = 1; i <= CATEGORIES.length; i++) {
+			PreparedStatement preparedStmt = null;
 			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt = connection.prepareStatement(insertStmt);
 				preparedStmt.setInt(1, i);
 				preparedStmt.setString(2, CATEGORIES[i-1]);
 				preparedStmt.executeQuery();
 			} catch (SQLException e) {
 				System.out.println("Exception while creating prepared statement for INSERT INTO category: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
 			}
 		}
 
@@ -231,13 +261,21 @@ public class Populate {
 		Iterator<String> it = SUBCATEGORIES.iterator();
 		int c = 0;
 		while (it.hasNext()) {
+			c += 1;
+			PreparedStatement preparedStmt = null;
 			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
-				preparedStmt.setInt(1, (c += 1));
+				preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, c);
 				preparedStmt.setString(2, it.next());
 				preparedStmt.executeQuery();
 			} catch (SQLException e) {
 				System.out.println("Exception while creating prepared statement for INSERT INTO subcategory: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
 			}
 		}
 		
@@ -249,13 +287,20 @@ public class Populate {
 		Iterator<String> it = ATTRIBUTES.iterator();
 		int c = 0;
 		while (it.hasNext()) {
+			PreparedStatement preparedStmt = null;
 			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt = connection.prepareStatement(insertStmt);
 				preparedStmt.setInt(1, (c += 1));
 				preparedStmt.setString(2, it.next());
 				preparedStmt.executeQuery();
 			} catch (SQLException e) {
 				System.out.println("Exception while creating prepared statement for INSERT INTO attribute: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
 			}
 		}
 		
@@ -269,7 +314,7 @@ public class Populate {
 		String fullAddress = json.getString("full_address");
 		boolean openBool = json.getBoolean("open");
 		String open = (openBool ? "T" : "F");
-		JSONArray buCategories = json.getJSONArray("categories");
+
 		String city = json.getString("city");
 		String state = json.getString("state");
 		float latitude = json.getFloat("latitude");
@@ -277,12 +322,14 @@ public class Populate {
 		int reviewCount = json.getInt("review_count");
 		String name = json.getString("name");
 		double stars = json.getDouble("stars");
-		JSONObject attributes = json.getJSONObject("attributes");
+
 		String type = json.getString("type");
 
 		String insertStmt = "INSERT INTO business VALUES(?,?,?,?,?,?,?,?,?,?,?)";
+		PreparedStatement preparedStmt = null;
+		ResultSet rs = null;
 		try {
-			PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+			preparedStmt = connection.prepareStatement(insertStmt);
 			preparedStmt.setString(1, id);
 			preparedStmt.setString(2, name);
 			preparedStmt.setString(3, fullAddress);
@@ -294,11 +341,79 @@ public class Populate {
 			preparedStmt.setInt(9, reviewCount);
 			preparedStmt.setDouble(10, stars);
 			preparedStmt.setString(11, type);
-			preparedStmt.executeQuery();
+			rs = preparedStmt.executeQuery();
 		} catch (SQLException e) {
 			System.out.println("Exception while creating prepared statement for INSERT INTO business: " + e.getMessage());
+		} finally {
+			try {
+				preparedStmt.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing prepared statement: " + e.getMessage());
+			}
+			try {
+				rs.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing result set: " + e.getMessage());
+			}
+		}
+				
+	}
+	
+	private static void insertIntoBuAttribute(Connection connection, String line) {
+		
+		JSONObject json = new JSONObject(line);
+		
+		String id = json.getString("business_id");
+		JSONObject attributes = json.getJSONObject("attributes");
+		
+		String insertStmt = "INSERT INTO bu_attribute VALUES(?,?,?,?)";
+		Iterator<String> iterator = attributes.keys();
+		while (iterator.hasNext()) {
+		    String key = iterator.next();
+		    Object value = attributes.get(key);
+		    String v = "";
+		    if (value instanceof String) {
+		    		v = (String) value;
+		    }
+		    if (value instanceof Boolean) {
+		    		if (attributes.getBoolean(key)) {
+		    			v = "true";
+		    		} else {
+		    			v = "false";
+		    		}
+		    }
+		    attrId += 1;
+		    ATTRIBUTES.add(key);
+		    PreparedStatement preparedStmt3 = null;
+			try {
+				preparedStmt3 = connection.prepareStatement(insertStmt);
+				preparedStmt3.setInt(1, attrId);
+				preparedStmt3.setString(2, id);
+				preparedStmt3.setString(3, key);
+				preparedStmt3.setString(4, v);
+				preparedStmt3.executeQuery();
+			} catch (SQLException e) {
+				System.out.println("Exception while creating prepared statement for INSERT INTO bu_attribute: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt3.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
+			}
 		}
 		
+	}
+	
+	private static void insertIntoBuCatSubcat(Connection connection, String line) {
+		
+		JSONObject json = new JSONObject(line);
+		
+		String id = json.getString("business_id");
+		JSONArray buCategories = json.getJSONArray("categories");
+		
+		String insertStmt = "";
+		int cId = 0;
 		for (int i = 0; i < buCategories.length(); i++) {
 			boolean isACategory = false;
 			String cat = buCategories.get(i).toString();
@@ -306,43 +421,44 @@ public class Populate {
 			for (int j = 0; j < CATEGORIES.length; j++) {
 				if (cat.equals(CATEGORIES[j])) {
 					insertStmt = "INSERT INTO bu_category VALUES(?,?,?)";
+					catId += 1;
+					cId = catId;
+					isACategory = true;
 				}
 			}
 			
 			if (!isACategory) {
 				insertStmt = "INSERT INTO bu_subcategory VALUES(?,?,?)";
+				subcatId += 1;
+				cId = subcatId;
 				SUBCATEGORIES.add(cat);
 			}
 			
+			PreparedStatement preparedStmt = null;
+			ResultSet rs = null;
 			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
-				preparedStmt.setInt(1, (count + 1));
+				preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt.setInt(1, cId);
 				preparedStmt.setString(2, id);
 				preparedStmt.setString(3, cat);
-				preparedStmt.executeQuery();
+				rs = preparedStmt.executeQuery();
 			} catch (SQLException e) {
 				if (isACategory) {
 					System.out.println("Exception while creating prepared statement for INSERT INTO bu_category: " + e.getMessage());
 				} else {
 					System.out.println("Exception while creating prepared statement for INSERT INTO bu_subcategory: " + e.getMessage());
 				}
-			}
-		}
-		
-		insertStmt = "INSERT INTO bu_attribute VALUES(?,?,?,?)";
-		for(int i = 0; i < attributes.names().length(); i++){
-		    String key = attributes.names().getString(i);
-		    String value = (String) attributes.get(attributes.names().getString(i));
-		    ATTRIBUTES.add(key);
-			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
-				preparedStmt.setInt(1, (count + 1));
-				preparedStmt.setString(2, id);
-				preparedStmt.setString(3, key);
-				preparedStmt.setString(4, value);
-				preparedStmt.executeQuery();
-			} catch (SQLException e) {
-				System.out.println("Exception while creating prepared statement for INSERT INTO bu_attribute: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
+				try {
+					rs.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing result set: " + e.getMessage());
+				}
 			}
 		}
 		
@@ -371,8 +487,9 @@ public class Populate {
 		String type = json.getString("type");
 		
 		String insertStmt = "INSERT INTO review VALUES(?,?,?,?,?,?,?,?,?,?)";
+		PreparedStatement preparedStmt = null;
 		try {
-			PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+			preparedStmt = connection.prepareStatement(insertStmt);
 			preparedStmt.setString(1, id);
 			preparedStmt.setString(2, buId);
 			preparedStmt.setString(3, userId);
@@ -386,6 +503,12 @@ public class Populate {
 			preparedStmt.executeQuery();
 		} catch (SQLException e) {
 			System.out.println("Exception while creating prepared statement for INSERT INTO review: " + e.getMessage());
+		} finally {
+			try {
+				preparedStmt.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing prepared statement: " + e.getMessage());
+			}
 		}
 		
 	}
@@ -433,8 +556,9 @@ public class Populate {
 		JSONArray elite = json.getJSONArray("elite");
 		
 		String insertStmt = "INSERT INTO yelp_user VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		PreparedStatement preparedStmt = null;
 		try {
-			PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+			preparedStmt = connection.prepareStatement(insertStmt);
 			preparedStmt.setString(1, id);
 			preparedStmt.setString(2, name);
 			preparedStmt.setDate(3, date);
@@ -459,34 +583,76 @@ public class Populate {
 			preparedStmt.executeQuery();
 		} catch (SQLException e) {
 			System.out.println("Exception while creating prepared statement for INSERT INTO yelp_user: " + e.getMessage());
+		} finally {
+			try {
+				preparedStmt.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing prepared statement: " + e.getMessage());
+			}
 		}
 		
 		for (int i = 0; i < friends.length(); i++) {
 			insertStmt = "INSERT INTO friend VALUES(?,?,?)";
 			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt = connection.prepareStatement(insertStmt);
 				preparedStmt.setInt(1, (i += 1));
 				preparedStmt.setString(2, id);
 				preparedStmt.setString(3, friends.getString(i));
 				preparedStmt.executeQuery();
 			} catch (SQLException e) {
 				System.out.println("Exception while creating prepared statement for INSERT INTO friend: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
 			}
 		}
 		
 		for (int i = 0; i < elite.length(); i++) {
 			insertStmt = "INSERT INTO elite_years VALUES(?,?,?)";
 			try {
-				PreparedStatement preparedStmt = connection.prepareStatement(insertStmt);
+				preparedStmt = connection.prepareStatement(insertStmt);
 				preparedStmt.setInt(1, (i += 1));
 				preparedStmt.setString(2, id);
 				preparedStmt.setString(3, String.valueOf(elite.getInt(i)));
 				preparedStmt.executeQuery();
+				preparedStmt.close();
 			} catch (SQLException e) {
 				System.out.println("Exception while creating prepared statement for INSERT INTO elite_years: " + e.getMessage());
+			} finally {
+				try {
+					preparedStmt.close();
+				} catch (SQLException e) {
+					System.out.println("Exception while closing prepared statement: " + e.getMessage());
+				}
 			}
 		}
 		
+	}
+	
+	private static void test(Connection connection) {
+		String select = "SELECT * FROM business WHERE ROWNUM = 10";
+		Statement stmt = null;
+		ResultSet rs = null;
+		try {
+			stmt = connection.createStatement();
+			stmt.executeQuery(select);
+		} catch(SQLException e) {
+			System.out.println("Error while testing: " + e.getMessage());
+		} finally {
+			try {
+				stmt.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing prepared statement: " + e.getMessage());
+			}
+			try {
+				rs.close();
+			} catch (SQLException e) {
+				System.out.println("Exception while closing result set: " + e.getMessage());
+			}
+		}
 	}
 
 }
