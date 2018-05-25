@@ -26,7 +26,7 @@ public class ReviewParser {
 			while ((line = reader.readLine()) != null) {
 				prepareInsertIntoReview(insertIntoReview, line);
 				lineNum += 1;
-				if (lineNum % 75000 == 0) {
+				if (lineNum % 100000 == 0) {
 					int rs[] = insertIntoReview.executeBatch();
 					totalRows += rs.length;
 					insertIntoReview.clearBatch();

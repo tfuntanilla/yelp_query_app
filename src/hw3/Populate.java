@@ -17,7 +17,7 @@ public class Populate {
 	public static void main(String[] args) {
 
 		if (args.length != 4) {
-			System.out.println("Required args: yelp_business.json yelp_review.json yelp_checkin.json yelp_user.json");
+			System.out.println("Required program args: yelp_business.json yelp_review.json yelp_checkin.json yelp_user.json");
 			System.exit(-1);
 		}
 
@@ -34,6 +34,7 @@ public class Populate {
 
 			connection = DriverManager
 					.getConnection(Constants.ORACLE_URL, Constants.USERNAME, Constants.PASSWORD);
+
 
 			boolean pass = true;
 			for (String tableName : Constants.TABLES) {
@@ -88,6 +89,9 @@ public class Populate {
 				System.out.println("Exception while closing reader: " + e.getMessage());
 				System.exit(-1);
 			}
+
+			CreateIndex.createIndex(connection);
+			connection.commit();
 
 		} catch (SQLException e) {
 			System.out.println("Exception while establishing connection: " + e.getMessage());
