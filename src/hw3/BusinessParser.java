@@ -5,15 +5,14 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class BusinessParser {
 
+	private static Map<String, TreeSet<String>> CAT_TO_SUBCAT = new HashMap<String, TreeSet<String>>();
 	private static Set<String> SUBCATEGORIES = new TreeSet<String>();
 	private static Set<String> ATTRIBUTES = new TreeSet<String>();
 
@@ -94,6 +93,16 @@ public class BusinessParser {
 			int[] rs7 = insertIntoAttribute.executeBatch();
 			insertIntoAttribute.close();
 			System.out.println("Total rows inserted in table attribute: " + rs7.length);
+
+			String sql8 = "INSERT INTO cat_to_subcat VALUES(?,?,?)";
+			PreparedStatement insertIntoCatToSubcat = connection.prepareStatement(sql8);
+			int id = 1;
+			id = prepareInsertIntoCatToSubcat(insertIntoCatToSubcat, line, id);
+			id += 1;
+
+			int[] rs8 = insertIntoCatToSubcat.executeBatch();
+			insertIntoCatToSubcat.close();
+			System.out.println("Total rows inserted in table cat_to_subcat: " + rs8.length);
 			
 		} catch(SQLException e) {
 			System.out.println("Exception while creating PreparedStatement in parsing yelp_business.json: " + e.getMessage());
@@ -182,10 +191,13 @@ public class BusinessParser {
 		String buId = json.getString("business_id");
 		JSONArray buCategories = json.getJSONArray("categories");
 
+		Set<String> categories = new TreeSet<String>();
+		Set<String> subcategories = new TreeSet<String>();
 		for (int i = 0; i < buCategories.length(); i++) {
 			boolean isACategory = false;
 			for (int j = 0; j < Constants.CATEGORIES.length; j++) {
 				if (buCategories.getString(i).equals(Constants.CATEGORIES[j])) {
+					categories.add(buCategories.getString(i));
 					isACategory = true;
 				}
 			}
@@ -203,6 +215,37 @@ public class BusinessParser {
 			}
 		}
 
+		Iterator<String> it = categories.iterator();
+		while (it.hasNext()) {
+			CAT_TO_SUBCAT.get(it.next()).addAll(subcategories);
+		}
+
+
+		return nextId;
+	}
+
+	private static int prepareInsertIntoCatToSubcat(PreparedStatement stmt, String line, int id) {
+
+		int nextId = id;
+		System.out.println(CAT_TO_SUBCAT.size());
+		for(Map.Entry<String, TreeSet<String>> entry : CAT_TO_SUBCAT.entrySet()) {
+			String category = entry.getKey();
+			Set<String> subcategories = entry.getValue();
+			Iterator<String> s = subcategories.iterator();
+			while(s.hasNext()) {
+				String sub = s.next();
+				try {
+					stmt.clearParameters();
+					stmt.setInt(1, nextId);
+					stmt.setString(2, category);
+					stmt.setString(3, sub);
+					stmt.addBatch();
+				} catch (SQLException e) {
+					System.out.println("Exception while creating PreparedStatement for INSERT INTO cat_to_subcat: " + e.getMessage());
+				}
+				nextId += 1;
+			}
+		}
 		return nextId;
 	}
 

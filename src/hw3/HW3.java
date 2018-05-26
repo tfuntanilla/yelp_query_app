@@ -38,8 +38,11 @@ public class HW3 extends JDialog {
     private JPanel subcategoryPanel;
     private JScrollPane categoryPane;
     private JPanel categoryPanel;
+    private JScrollPane subcategoryPane;
+    private JScrollPane attributesPane;
 
-    public HW3() {
+    public HW3(List<String> categories) {
+
         setContentPane(contentPane);
         setModal(true);
         getRootPane().setDefaultButton(buttonOK);
@@ -70,6 +73,49 @@ public class HW3 extends JDialog {
                 onCancel();
             }
         }, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+
+        // Set preferred sizes
+        categoryPane.setPreferredSize(new Dimension(250, 200));
+        subcategoryPane.setPreferredSize(new Dimension(250, 200));
+        attributesPane.setPreferredSize(new Dimension(250, 200));
+
+        reviewPanel.setPreferredSize(new Dimension(500, 200));
+        resultsPanel.setPreferredSize(new Dimension(750, 250));
+        queryPanel.setPreferredSize(new Dimension(500, 250));
+
+        // Add to UI
+        JList categoryList = new JList();
+        categoryList.setLayout(new BoxLayout(categoryList, BoxLayout.PAGE_AXIS));
+        categoryList.setPreferredSize(new Dimension(200, 650));
+
+        for (String category : categories) {
+            JCheckBox checkBox = new JCheckBox(category);
+            checkBox.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    System.out.println(e.getID() == ActionEvent.ACTION_PERFORMED
+                            ? "ACTION_PERFORMED" : e.getID());
+                }
+            });
+            checkBox.addItemListener(new ItemListener() {
+                @Override
+                public void itemStateChanged(ItemEvent e) {
+                    System.out.println(e.getStateChange() == ItemEvent.SELECTED
+                            ? "SELECTED" : "DESELECTED");
+                    JCheckBox check = (JCheckBox) e.getSource();
+                    String categoryName = check.getText();
+
+                }
+            });
+            categoryList.add(checkBox);
+            categoryList.repaint();
+        }
+
+        categoryPane.setLayout(new ScrollPaneLayout());
+        categoryPane.add(categoryList);
+        categoryPane.setViewportView(categoryList);
+        categoryPane.repaint();
+
     }
 
     private void onOK() {
@@ -92,35 +138,18 @@ public class HW3 extends JDialog {
             System.exit(-1);
         }
 
-        List<String> categories = new ArrayList<String>();
+
         Connection connection = null;
         try {
 
             connection = DriverManager
                     .getConnection(Constants.ORACLE_URL, Constants.USERNAME, Constants.PASSWORD);
-            
-            HW3 dialog = new HW3();
 
             // Fetch category from DB
+            List<String> categories = new ArrayList<String>();
             categories = queryAllCategories(connection);
 
-            // Add to UI
-            JList categoryList = new JList();
-            categoryList.setLayout(new BoxLayout(categoryList, BoxLayout.PAGE_AXIS));
-            categoryList.setPreferredSize(new Dimension(200, 675));
-
-            for (String category : categories) {
-                JCheckBox checkBox = new JCheckBox(category);
-                categoryList.add(checkBox);
-                categoryList.repaint();
-            }
-
-            dialog.categoryPane.setLayout(new ScrollPaneLayout());
-            dialog.categoryPane.setPreferredSize(new Dimension(250, 300));
-            dialog.categoryPane.add(categoryList);
-            dialog.categoryPane.setViewportView(categoryList);
-
-            dialog.categoryPane.repaint();
+            HW3 dialog = new HW3(categories);
             dialog.pack();
             dialog.setVisible(true);
 

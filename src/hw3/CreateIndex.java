@@ -33,6 +33,8 @@ public class CreateIndex {
             System.out.println("Created review_idx on review.");
 
             stmt.close();
+
+            System.out.println("Done indexing.");
         } catch(SQLException e) {
             e.printStackTrace();
         }
