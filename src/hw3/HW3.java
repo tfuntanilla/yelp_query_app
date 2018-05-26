@@ -1,6 +1,7 @@
 package hw3;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 import java.util.ArrayList;
@@ -21,6 +22,22 @@ public class HW3 extends JDialog {
     private JComboBox comboBox4;
     private JComboBox comboBox5;
     private JButton executeButton;
+    private JPanel footer;
+    private JPanel buttons;
+    private JPanel topPanel;
+    private JPanel reviewPanel;
+    private JPanel businessPanel;
+    private JPanel lastPanel;
+    private JPanel queryPanel;
+    private JPanel resultsPanel;
+    private JPanel middlePanel;
+    private JPanel labelsPanel;
+    private JPanel textFieldsPanel;
+    private JPanel selectsPanel;
+    private JPanel attributesPanel;
+    private JPanel subcategoryPanel;
+    private JScrollPane categoryPane;
+    private JPanel categoryPanel;
 
     public HW3() {
         setContentPane(contentPane);
@@ -81,8 +98,31 @@ public class HW3 extends JDialog {
 
             connection = DriverManager
                     .getConnection(Constants.ORACLE_URL, Constants.USERNAME, Constants.PASSWORD);
+            
+            HW3 dialog = new HW3();
 
+            // Fetch category from DB
             categories = queryAllCategories(connection);
+
+            // Add to UI
+            JList categoryList = new JList();
+            categoryList.setLayout(new BoxLayout(categoryList, BoxLayout.PAGE_AXIS));
+            categoryList.setPreferredSize(new Dimension(200, 675));
+
+            for (String category : categories) {
+                JCheckBox checkBox = new JCheckBox(category);
+                categoryList.add(checkBox);
+                categoryList.repaint();
+            }
+
+            dialog.categoryPane.setLayout(new ScrollPaneLayout());
+            dialog.categoryPane.setPreferredSize(new Dimension(250, 300));
+            dialog.categoryPane.add(categoryList);
+            dialog.categoryPane.setViewportView(categoryList);
+
+            dialog.categoryPane.repaint();
+            dialog.pack();
+            dialog.setVisible(true);
 
         } catch (SQLException e) {
             System.out.println("Exception while establishing connection: " + e.getMessage());
@@ -95,10 +135,8 @@ public class HW3 extends JDialog {
             }
         }
 
-        HW3 dialog = new HW3();
-        dialog.pack();
-        dialog.setVisible(true);
         System.exit(0);
+
     }
 
     private static List<String> queryAllCategories(Connection conn) {
