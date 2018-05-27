@@ -1,0 +1,10 @@
+# intellij files
+  
+*.iml
+*.iws
+*.ipr
+.idea/
+
+.json
+
+target
