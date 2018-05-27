@@ -13,7 +13,7 @@ import org.json.JSONObject;
 public class BusinessParser {
 
 	private static Map<String, TreeSet<String>> CAT_TO_SUBCAT = new HashMap<String, TreeSet<String>>();
-	private static Set<String> SUBCATEGORIES = new TreeSet<String>();
+//	private static Set<String> SUBCATEGORIES = new TreeSet<String>();
 	private static Set<String> ATTRIBUTES = new TreeSet<String>();
 
 	public static void parse(Connection connection, BufferedReader reader) {
@@ -68,31 +68,31 @@ public class BusinessParser {
 			insertIntoCategory.close();
 			System.out.println("Total rows inserted in table category: " + rs5.length);
 
-			String sql6 = "INSERT INTO subcategory VALUES(?,?)";
-			PreparedStatement insertIntoSubcategory = connection.prepareStatement(sql6);
-			Iterator<String> it = SUBCATEGORIES.iterator();
-			int subcatId = 1;
-			while (it.hasNext()) {			
-				prepareInsertIntoSubcategory(insertIntoSubcategory, subcatId, it.next());
-				subcatId += 1;
-			}
+//			String sql6 = "INSERT INTO subcategory VALUES(?,?)";
+//			PreparedStatement insertIntoSubcategory = connection.prepareStatement(sql6);
+//			Iterator<String> it = SUBCATEGORIES.iterator();
+//			int subcatId = 1;
+//			while (it.hasNext()) {
+//				prepareInsertIntoSubcategory(insertIntoSubcategory, subcatId, it.next());
+//				subcatId += 1;
+//			}
+//
+//			int[] rs6 = insertIntoSubcategory.executeBatch();
+//			insertIntoSubcategory.close();
+//			System.out.println("Total rows inserted in table subcategory: " + rs6.length);
 
-			int[] rs6 = insertIntoSubcategory.executeBatch();
-			insertIntoSubcategory.close();
-			System.out.println("Total rows inserted in table subcategory: " + rs6.length);
-
-			String sql7 = "INSERT INTO attribute VALUES(?,?)";
-			PreparedStatement insertIntoAttribute = connection.prepareStatement(sql7);
-			it = ATTRIBUTES.iterator();
-			int attId = 1;
-			while (it.hasNext()) {			
-				prepareInsertIntoAttribute(insertIntoAttribute, attId, it.next());
-				attId += 1;
-			}
-
-			int[] rs7 = insertIntoAttribute.executeBatch();
-			insertIntoAttribute.close();
-			System.out.println("Total rows inserted in table attribute: " + rs7.length);
+//			String sql7 = "INSERT INTO attribute VALUES(?,?)";
+//			PreparedStatement insertIntoAttribute = connection.prepareStatement(sql7);
+//			it = ATTRIBUTES.iterator();
+//			int attId = 1;
+//			while (it.hasNext()) {
+//				prepareInsertIntoAttribute(insertIntoAttribute, attId, it.next());
+//				attId += 1;
+//			}
+//
+//			int[] rs7 = insertIntoAttribute.executeBatch();
+//			insertIntoAttribute.close();
+//			System.out.println("Total rows inserted in table attribute: " + rs7.length);
 
 			String sql8 = "INSERT INTO cat_to_subcat VALUES(?,?,?)";
 			PreparedStatement insertIntoCatToSubcat = connection.prepareStatement(sql8);
@@ -175,7 +175,7 @@ public class BusinessParser {
 					}
 					nextId += 1;
 				} else {
-					SUBCATEGORIES.add(buCategories.getString(i));
+//					SUBCATEGORIES.add(buCategories.getString(i));
 				}
 			}
 		}
@@ -191,8 +191,8 @@ public class BusinessParser {
 		String buId = json.getString("business_id");
 		JSONArray buCategories = json.getJSONArray("categories");
 
-		Set<String> categories = new TreeSet<String>();
-		Set<String> subcategories = new TreeSet<String>();
+		TreeSet<String> categories = new TreeSet<String>();
+		TreeSet<String> subcategories = new TreeSet<String>();
 		for (int i = 0; i < buCategories.length(); i++) {
 			boolean isACategory = false;
 			for (int j = 0; j < Constants.CATEGORIES.length; j++) {
@@ -202,6 +202,7 @@ public class BusinessParser {
 				}
 			}
 			if (!isACategory) {
+				subcategories.add(buCategories.getString(i));
 				try {
 					stmt.clearParameters();
 					stmt.setInt(1, nextId);
@@ -217,9 +218,15 @@ public class BusinessParser {
 
 		Iterator<String> it = categories.iterator();
 		while (it.hasNext()) {
-			CAT_TO_SUBCAT.get(it.next()).addAll(subcategories);
+			String cat = it.next();
+			if (CAT_TO_SUBCAT.get(cat) != null) {
+				TreeSet temp = CAT_TO_SUBCAT.get(cat);
+				temp.addAll(subcategories);
+				CAT_TO_SUBCAT.put(cat, temp);
+			} else {
+				CAT_TO_SUBCAT.put(cat, subcategories);
+			}
 		}
-
 
 		return nextId;
 	}
@@ -227,7 +234,6 @@ public class BusinessParser {
 	private static int prepareInsertIntoCatToSubcat(PreparedStatement stmt, String line, int id) {
 
 		int nextId = id;
-		System.out.println(CAT_TO_SUBCAT.size());
 		for(Map.Entry<String, TreeSet<String>> entry : CAT_TO_SUBCAT.entrySet()) {
 			String category = entry.getKey();
 			Set<String> subcategories = entry.getValue();
@@ -302,30 +308,30 @@ public class BusinessParser {
 
 	}
 
-	private static void prepareInsertIntoSubcategory(PreparedStatement stmt, int id, String name) {
+//	private static void prepareInsertIntoSubcategory(PreparedStatement stmt, int id, String name) {
+//
+//		try {
+//			stmt.clearParameters();
+//			stmt.setInt(1, id);
+//			stmt.setString(2, name);
+//			stmt.addBatch();
+//		} catch (SQLException e) {
+//			System.out.println("Exception while creating PreparedStatement for INSERT INTO subcategory: " + e.getMessage());
+//		}
+//
+//	}
 
-		try {
-			stmt.clearParameters();
-			stmt.setInt(1, id);
-			stmt.setString(2, name);
-			stmt.addBatch();
-		} catch (SQLException e) {
-			System.out.println("Exception while creating PreparedStatement for INSERT INTO subcategory: " + e.getMessage());
-		}
-
-	}
-
-	private static void prepareInsertIntoAttribute(PreparedStatement stmt, int id, String name) {
-
-		try {
-			stmt.clearParameters();
-			stmt.setInt(1, id);
-			stmt.setString(2, name);
-			stmt.addBatch();
-		} catch (SQLException e) {
-			System.out.println("Exception while creating PreparedStatement for INSERT INTO attribute: " + e.getMessage());
-		}
-
-	}
+//	private static void prepareInsertIntoAttribute(PreparedStatement stmt, int id, String name) {
+//
+//		try {
+//			stmt.clearParameters();
+//			stmt.setInt(1, id);
+//			stmt.setString(2, name);
+//			stmt.addBatch();
+//		} catch (SQLException e) {
+//			System.out.println("Exception while creating PreparedStatement for INSERT INTO attribute: " + e.getMessage());
+//		}
+//
+//	}
 
 }

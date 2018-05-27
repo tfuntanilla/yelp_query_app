@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class HW3 extends JDialog {
@@ -41,7 +42,9 @@ public class HW3 extends JDialog {
     private JScrollPane subcategoryPane;
     private JScrollPane attributesPane;
 
-    public HW3(List<String> categories) {
+    private List<String> checkedCategories = new ArrayList<String>();
+
+    public HW3(Connection connection, List<String> categories) {
 
         setContentPane(contentPane);
         setModal(true);
@@ -100,11 +103,32 @@ public class HW3 extends JDialog {
             checkBox.addItemListener(new ItemListener() {
                 @Override
                 public void itemStateChanged(ItemEvent e) {
-                    System.out.println(e.getStateChange() == ItemEvent.SELECTED
-                            ? "SELECTED" : "DESELECTED");
                     JCheckBox check = (JCheckBox) e.getSource();
                     String categoryName = check.getText();
+                    if (e.getStateChange() == 1) {
+                        checkedCategories.add(categoryName);
+                    } else {
+                        checkedCategories.remove(categoryName);
+                    }
+                    System.out.println(Arrays.asList(checkedCategories).toString());
 
+                    // Add to UI
+                    JList subcategoryList = new JList();
+                    subcategoryList.setLayout(new BoxLayout(subcategoryList, BoxLayout.PAGE_AXIS));
+                    subcategoryList.setPreferredSize(new Dimension(200, 650));
+
+                    List<String> subcategories = querySubcategoriesOfCheckedCategoriesAND(connection, checkedCategories);
+                    for (String subcategory : subcategories) {
+                        JCheckBox checkBox = new JCheckBox(subcategory);
+
+                        subcategoryList.add(checkBox);
+                        subcategoryList.repaint();
+                    }
+
+                    subcategoryPane.setLayout(new ScrollPaneLayout());
+                    subcategoryPane.add(subcategoryList);
+                    subcategoryPane.setViewportView(subcategoryList);
+                    subcategoryPane.repaint();
                 }
             });
             categoryList.add(checkBox);
@@ -115,6 +139,8 @@ public class HW3 extends JDialog {
         categoryPane.add(categoryList);
         categoryPane.setViewportView(categoryList);
         categoryPane.repaint();
+
+
 
     }
 
@@ -149,7 +175,7 @@ public class HW3 extends JDialog {
             List<String> categories = new ArrayList<String>();
             categories = queryAllCategories(connection);
 
-            HW3 dialog = new HW3(categories);
+            HW3 dialog = new HW3(connection, categories);
             dialog.pack();
             dialog.setVisible(true);
 
@@ -187,4 +213,58 @@ public class HW3 extends JDialog {
         return categories;
 
     }
+
+    private static List<String> queryAllBusinessesUnderCategory(Connection conn, String category) {
+
+        List<String> businesses = new ArrayList<String>();
+
+        String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE CATEGORY = '" + category + "'";
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+            while(rs.next()) {
+                businesses.add(rs.getString("BU_ID"));
+            }
+            rs.close();
+        } catch(SQLException e) {
+            System.out.println("Exception while querying for businesses: " + e.getMessage());
+        }
+
+        return businesses;
+
+    }
+
+    private static List<String> querySubcategoriesOfCheckedCategoriesAND(Connection conn, List<String> checkedCategories) {
+
+        List<String> subcategories = new ArrayList<String>();
+
+        if (checkedCategories.size() > 0) {
+
+            String whereClause = "";
+            for (String checkedCategory : checkedCategories) {
+                whereClause += "CATEGORY = ? AND ";
+            }
+            whereClause = whereClause.substring(0, whereClause.length() - 5); // remove the last ' AND '
+
+            String sql = "SELECT SUBCATEGORY FROM CAT_TO_SUBCAT WHERE (" + whereClause + ")";
+            System.out.println(sql);
+            try {
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                for (int i = 1; i <= checkedCategories.size(); i++) {
+                    stmt.setString(i, checkedCategories.get(i - 1));
+                }
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) {
+                    subcategories.add(rs.getString("SUBCATEGORY"));
+                }
+                rs.close();
+            } catch (SQLException e) {
+                System.out.println("Exception while querying for subcategories: " + e.getMessage());
+            }
+
+        }
+        return subcategories;
+
+    }
+
 }
