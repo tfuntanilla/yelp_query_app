@@ -1,6 +1,10 @@
 package hw3;
 
+import javafx.scene.control.ComboBox;
+
 import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import java.awt.*;
@@ -52,6 +56,7 @@ public class HW3 extends JDialog {
     private List<String> checkedSubcategories = new ArrayList<String>();
     private List<String> checkedAttributes = new ArrayList<String>();
 
+
     public HW3(Connection connection, List<String> categories) {
 
         setContentPane(contentPane);
@@ -73,6 +78,16 @@ public class HW3 extends JDialog {
         buttonCancel.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onCancel();
+            }
+        });
+
+        businessANDORSelect.addItem("OR");
+        businessANDORSelect.addItem("AND");
+        businessANDORSelect.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                JComboBox cb = (JComboBox) e.getSource();
+                SEARCH_CRITERIA = (String) cb.getSelectedItem();
             }
         });
 
@@ -140,13 +155,15 @@ public class HW3 extends JDialog {
                                     checkedSubcategories.remove(subcategoryName);
                                     // TODO Clear checked attributes
                                 }
-                                System.out.println("Checked subcategories: " + Arrays.asList(checkedSubcategories).toString());
+                                System.out.println("Checked subcategories: " +
+                                        Arrays.asList(checkedSubcategories).toString());
 
                                 // Add to UI
                                 JList attributesList = new JList();
                                 attributesList.setLayout(new BoxLayout(attributesList, BoxLayout.PAGE_AXIS));
 
-                                List<String> attributes = queryAttributesOR(connection, checkedCategories, checkedSubcategories);
+                                List<String> attributes = queryAttributesOR(connection, checkedCategories,
+                                        checkedSubcategories);
                                 attributesList.setPreferredSize(new Dimension(200, attributes.size() * 23));
 
                                 for (String attr : attributes) {
@@ -161,7 +178,8 @@ public class HW3 extends JDialog {
                                             } else {
                                                 checkedAttributes.remove(attribute);
                                             }
-                                            System.out.println("Checked attributes: " + Arrays.asList(checkedAttributes).toString());
+                                            System.out.println("Checked attributes: " +
+                                                    Arrays.asList(checkedAttributes).toString());
                                         }
                                     });
                                     attributesList.add(checkBox);
@@ -199,20 +217,19 @@ public class HW3 extends JDialog {
 
     private void onExecute(Connection conn) {
 
-        if (SEARCH_CRITERIA.equals("OR")) {
-            // category search only
-            if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
-                categorySearchOR(conn);
-            }
-            // category and subcategory search
-            else if (checkedAttributes.isEmpty()) {
-                categoryAndSubcategorySearchOR(conn);
-            }
-            // category and subcategory and attribute search
-            else {
-                categoryAndSubcategoryAndAttributeSearchOR(conn);
-            }
+        // category search only
+        if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
+            categorySearch(conn);
         }
+        // category and subcategory search
+        else if (checkedAttributes.isEmpty()) {
+            categoryAndSubcategorySearch(conn);
+        }
+        // category and subcategory and attribute search
+        else {
+            categoryAndSubcategoryAndAttributeSearch(conn);
+        }
+
 
     }
 
@@ -294,7 +311,7 @@ public class HW3 extends JDialog {
         if (!checkedCategories.isEmpty()) {
 
             String categoryClause = "";
-            for (String checkedCategory : checkedCategories) {
+            for (int i = 0; i < checkedCategories.size(); i++) {
                 categoryClause += "A.CATEGORY = ? OR ";
             }
             categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
@@ -322,7 +339,8 @@ public class HW3 extends JDialog {
 
     }
 
-    private static List<String> queryAttributesOR(Connection conn, List<String> checkedCategories, List<String> checkedSubcategories) {
+    private static List<String> queryAttributesOR(Connection conn, List<String> checkedCategories,
+                                                  List<String> checkedSubcategories) {
 
         List<String> attributes = new ArrayList<String>();
 
@@ -340,8 +358,9 @@ public class HW3 extends JDialog {
             }
             subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
 
-            String sql = "SELECT DISTINCT C.ATTR_NAME, C.ATTR_VALUE FROM BU_CATEGORY A, BU_SUBCATEGORY B, BU_ATTRIBUTE C WHERE " +
-                    "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (B.BU_ID = C.BU_ID))";
+            String sql = "SELECT DISTINCT C.ATTR_NAME, C.ATTR_VALUE FROM BU_CATEGORY A, BU_SUBCATEGORY B, " +
+                    "BU_ATTRIBUTE C WHERE ((" + categoryClause + ") AND (" + subcategoryClause + ") AND " +
+                    "(B.BU_ID = C.BU_ID)) ORDER BY C.ATTR_NAME";
             try {
                 PreparedStatement ps = conn.prepareStatement(sql);
                 int id = 0;
@@ -399,13 +418,13 @@ public class HW3 extends JDialog {
         return null;
     }
 
-    private void categorySearchOR(Connection conn) {
+    private void categorySearch(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
-            categoryClause += "CATEGORY = ? OR ";
+            categoryClause += "CATEGORY = ? " + SEARCH_CRITERIA + " ";
         }
-        categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+        categoryClause = categoryClause.substring(0, categoryClause.length() - (SEARCH_CRITERIA.length() + 2));
 
         String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
 
@@ -413,19 +432,19 @@ public class HW3 extends JDialog {
 
     }
 
-    private void categoryAndSubcategorySearchOR(Connection conn) {
+    private void categoryAndSubcategorySearch(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
-            categoryClause += "A.CATEGORY = ? OR ";
+            categoryClause += "A.CATEGORY = ? " + SEARCH_CRITERIA + " ";
         }
-        categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+        categoryClause = categoryClause.substring(0, categoryClause.length() - (SEARCH_CRITERIA.length() + 2));
 
         String subcategoryClause = "";
         for (int i = 0; i < checkedSubcategories.size(); i++) {
-            subcategoryClause += "B.SUBCATEGORY = ? OR ";
+            subcategoryClause += "B.SUBCATEGORY = ? " + SEARCH_CRITERIA + " ";
         }
-        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - (SEARCH_CRITERIA.length() + 2));
 
         String sql = "SELECT A.BU_ID FROM BU_CATEGORY A, BU_SUBCATEGORY B WHERE " +
                 "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (A.BU_ID = B.BU_ID))";
@@ -438,33 +457,34 @@ public class HW3 extends JDialog {
 
     }
 
-    private void categoryAndSubcategoryAndAttributeSearchOR(Connection conn) {
+    private void categoryAndSubcategoryAndAttributeSearch(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
-            categoryClause += "A.CATEGORY = ? OR ";
+            categoryClause += "A.CATEGORY = ? " + SEARCH_CRITERIA + " ";
         }
-        categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+        categoryClause = categoryClause.substring(0, categoryClause.length() - (SEARCH_CRITERIA.length() + 2));
 
         String subcategoryClause = "";
         for (int i = 0; i < checkedSubcategories.size(); i++) {
-            subcategoryClause += "B.SUBCATEGORY = ? OR ";
+            subcategoryClause += "B.SUBCATEGORY = ? " + SEARCH_CRITERIA + " ";
         }
-        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - (SEARCH_CRITERIA.length() + 2));
 
         String attributeClause = "";
         List<String> attrItems = new ArrayList<String>();
         for (String checkedAttribute : checkedAttributes) {
-            attributeClause += "(C.ATTR_NAME = ? AND C.ATTR_VALUE = ?) OR ";
+            attributeClause += "(C.ATTR_NAME = ? AND C.ATTR_VALUE = ?) " + SEARCH_CRITERIA + " ";
             String k = checkedAttribute.split(" = ")[0];
             String v = checkedAttribute.split(" = ")[1];
             attrItems.add(k);
             attrItems.add(v);
         }
-        attributeClause = attributeClause.substring(0, attributeClause.length() - 4); // remove the last ' OR '
+        attributeClause = attributeClause.substring(0, attributeClause.length() - (SEARCH_CRITERIA.length() + 2));
 
         String sql = "SELECT C.BU_ID FROM BU_CATEGORY A, BU_SUBCATEGORY B, BU_ATTRIBUTE C WHERE " +
-                "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (" + attributeClause + ") AND (A.BU_ID = B.BU_ID) AND (B.BU_ID = C.BU_ID))";
+                "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (" + attributeClause + ") " +
+                "AND (A.BU_ID = B.BU_ID) AND (B.BU_ID = C.BU_ID))";
 
         List<String> items = new ArrayList<String>();
         items.addAll(checkedCategories);
@@ -480,7 +500,8 @@ public class HW3 extends JDialog {
         System.out.print("Searching... ");
         try {
             // Get name, city, state, and stars of each bu_id
-            String sql = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") ORDER BY STARS DESC";
+            String sql = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") " +
+                    "ORDER BY STARS DESC";
             System.out.println(sql);
             System.out.println(Arrays.asList(items).toString());
             PreparedStatement ps = conn.prepareStatement(sql);
@@ -496,11 +517,24 @@ public class HW3 extends JDialog {
                 resultsScrollPane.add(resultsTable);
                 resultsScrollPane.setViewportView(resultsTable);
                 resultsScrollPane.repaint();
+
+                resultsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener(){
+                    public void valueChanged(ListSelectionEvent event) {
+                        System.out.println(resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString());
+                    }
+                });
+
             }
 
         } catch (SQLException e) {
             System.out.println("Exception while querying for businesses: " + e.getMessage());
         }
         System.out.print("Done.\n");
+    }
+
+    private void reviewSearch(String businessName) {
+
+
+
     }
 }

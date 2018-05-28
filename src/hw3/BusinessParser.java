@@ -12,10 +12,6 @@ import org.json.JSONObject;
 
 public class BusinessParser {
 
-	private static Map<String, TreeSet<String>> CAT_TO_SUBCAT = new HashMap<String, TreeSet<String>>();
-//	private static Set<String> SUBCATEGORIES = new TreeSet<String>();
-	private static Set<String> ATTRIBUTES = new TreeSet<String>();
-
 	public static void parse(Connection connection, BufferedReader reader) {
 
 		try {
@@ -67,42 +63,6 @@ public class BusinessParser {
 			int[] rs5 = insertIntoCategory.executeBatch();
 			insertIntoCategory.close();
 			System.out.println("Total rows inserted in table category: " + rs5.length);
-
-//			String sql6 = "INSERT INTO subcategory VALUES(?,?)";
-//			PreparedStatement insertIntoSubcategory = connection.prepareStatement(sql6);
-//			Iterator<String> it = SUBCATEGORIES.iterator();
-//			int subcatId = 1;
-//			while (it.hasNext()) {
-//				prepareInsertIntoSubcategory(insertIntoSubcategory, subcatId, it.next());
-//				subcatId += 1;
-//			}
-//
-//			int[] rs6 = insertIntoSubcategory.executeBatch();
-//			insertIntoSubcategory.close();
-//			System.out.println("Total rows inserted in table subcategory: " + rs6.length);
-
-//			String sql7 = "INSERT INTO attribute VALUES(?,?)";
-//			PreparedStatement insertIntoAttribute = connection.prepareStatement(sql7);
-//			it = ATTRIBUTES.iterator();
-//			int attId = 1;
-//			while (it.hasNext()) {
-//				prepareInsertIntoAttribute(insertIntoAttribute, attId, it.next());
-//				attId += 1;
-//			}
-//
-//			int[] rs7 = insertIntoAttribute.executeBatch();
-//			insertIntoAttribute.close();
-//			System.out.println("Total rows inserted in table attribute: " + rs7.length);
-
-			String sql8 = "INSERT INTO cat_to_subcat VALUES(?,?,?)";
-			PreparedStatement insertIntoCatToSubcat = connection.prepareStatement(sql8);
-			int id = 1;
-			id = prepareInsertIntoCatToSubcat(insertIntoCatToSubcat, line, id);
-			id += 1;
-
-			int[] rs8 = insertIntoCatToSubcat.executeBatch();
-			insertIntoCatToSubcat.close();
-			System.out.println("Total rows inserted in table cat_to_subcat: " + rs8.length);
 			
 		} catch(SQLException e) {
 			System.out.println("Exception while creating PreparedStatement in parsing yelp_business.json: " + e.getMessage());
@@ -191,18 +151,14 @@ public class BusinessParser {
 		String buId = json.getString("business_id");
 		JSONArray buCategories = json.getJSONArray("categories");
 
-		TreeSet<String> categories = new TreeSet<String>();
-		TreeSet<String> subcategories = new TreeSet<String>();
 		for (int i = 0; i < buCategories.length(); i++) {
 			boolean isACategory = false;
 			for (int j = 0; j < Constants.CATEGORIES.length; j++) {
 				if (buCategories.getString(i).equals(Constants.CATEGORIES[j])) {
-					categories.add(buCategories.getString(i));
 					isACategory = true;
 				}
 			}
 			if (!isACategory) {
-				subcategories.add(buCategories.getString(i));
 				try {
 					stmt.clearParameters();
 					stmt.setInt(1, nextId);
@@ -216,42 +172,6 @@ public class BusinessParser {
 			}
 		}
 
-		Iterator<String> it = categories.iterator();
-		while (it.hasNext()) {
-			String cat = it.next();
-			if (CAT_TO_SUBCAT.get(cat) != null) {
-				TreeSet temp = CAT_TO_SUBCAT.get(cat);
-				temp.addAll(subcategories);
-				CAT_TO_SUBCAT.put(cat, temp);
-			} else {
-				CAT_TO_SUBCAT.put(cat, subcategories);
-			}
-		}
-
-		return nextId;
-	}
-
-	private static int prepareInsertIntoCatToSubcat(PreparedStatement stmt, String line, int id) {
-
-		int nextId = id;
-		for(Map.Entry<String, TreeSet<String>> entry : CAT_TO_SUBCAT.entrySet()) {
-			String category = entry.getKey();
-			Set<String> subcategories = entry.getValue();
-			Iterator<String> s = subcategories.iterator();
-			while(s.hasNext()) {
-				String sub = s.next();
-				try {
-					stmt.clearParameters();
-					stmt.setInt(1, nextId);
-					stmt.setString(2, category);
-					stmt.setString(3, sub);
-					stmt.addBatch();
-				} catch (SQLException e) {
-					System.out.println("Exception while creating PreparedStatement for INSERT INTO cat_to_subcat: " + e.getMessage());
-				}
-				nextId += 1;
-			}
-		}
 		return nextId;
 	}
 
@@ -266,7 +186,6 @@ public class BusinessParser {
 		Iterator<String> iterator = attributes.keys();
 		while (iterator.hasNext()) {
 			String key = iterator.next();
-			ATTRIBUTES.add(key);
 			Object value = attributes.get(key);
 			String v = "";
 			if (value instanceof String) {
@@ -339,31 +258,5 @@ public class BusinessParser {
 		}
 
 	}
-
-//	private static void prepareInsertIntoSubcategory(PreparedStatement stmt, int id, String name) {
-//
-//		try {
-//			stmt.clearParameters();
-//			stmt.setInt(1, id);
-//			stmt.setString(2, name);
-//			stmt.addBatch();
-//		} catch (SQLException e) {
-//			System.out.println("Exception while creating PreparedStatement for INSERT INTO subcategory: " + e.getMessage());
-//		}
-//
-//	}
-
-//	private static void prepareInsertIntoAttribute(PreparedStatement stmt, int id, String name) {
-//
-//		try {
-//			stmt.clearParameters();
-//			stmt.setInt(1, id);
-//			stmt.setString(2, name);
-//			stmt.addBatch();
-//		} catch (SQLException e) {
-//			System.out.println("Exception while creating PreparedStatement for INSERT INTO attribute: " + e.getMessage());
-//		}
-//
-//	}
 
 }

@@ -64,21 +64,21 @@ public class Populate {
 				System.out.println("Done.\n");
 				reader.close();
 
-//				path = Populate.class.getResource("yelp_user.json");
-//				jsonFile = new File(path.getFile());
-//				reader = new BufferedReader(new FileReader(jsonFile));
-//				System.out.println("Parsing yelp_user.json...");
-//				UserParser.parse(connection, reader);
-//				System.out.println("Done.\n");
-//				reader.close();
-//
-//				path = Populate.class.getResource("yelp_review.json");
-//				jsonFile = new File(path.getFile());
-//				reader = new BufferedReader(new FileReader(jsonFile));
-//				System.out.println("Parsing yelp_review.json...");
-//				ReviewParser.parse(connection, reader);
-//				System.out.println("Done.\n");
-//				reader.close();
+				path = Populate.class.getResource("yelp_user.json");
+				jsonFile = new File(path.getFile());
+				reader = new BufferedReader(new FileReader(jsonFile));
+				System.out.println("Parsing yelp_user.json...");
+				UserParser.parse(connection, reader);
+				System.out.println("Done.\n");
+				reader.close();
+
+				path = Populate.class.getResource("yelp_review.json");
+				jsonFile = new File(path.getFile());
+				reader = new BufferedReader(new FileReader(jsonFile));
+				System.out.println("Parsing yelp_review.json...");
+				ReviewParser.parse(connection, reader);
+				System.out.println("Done.\n");
+				reader.close();
 
 				// Not parsing yelp_checkin.json as data from it is not needed
 

@@ -18,8 +18,12 @@ public class CreateIndex {
             stmt.executeUpdate(sql2);
             System.out.println("Created bu_subcat_idx on bu_subcategory.");
 
-            String sql3 = "CREATE INDEX business_idx ON business (name, city, state, stars)";
+            String sql3 = "CREATE INDEX bu_attr_idx ON bu_attribute (bu_id, attr_name, attr_value)";
             stmt.executeUpdate(sql3);
+            System.out.println("Created bu_attr_idx on bu_attribute.");
+
+            String sql4 = "CREATE INDEX business_idx ON business (name, city, state, stars)";
+            stmt.executeUpdate(sql4);
             System.out.println("Created business_idx on business.");
 
 //            String sql4 = "CREATE INDEX yelp_user_idx ON yelp_user " +
