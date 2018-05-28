@@ -338,7 +338,12 @@ public class HW3 extends JDialog {
                     JList subcategoryList = new JList();
                     subcategoryList.setLayout(new BoxLayout(subcategoryList, BoxLayout.PAGE_AXIS));
 
-                    List<String> subcategories = querySubcategoriesOR(connection, checkedCategories);
+                    List<String> subcategories = new ArrayList<String>();
+                    if (BU_SEARCH_CRITERIA.equals("OR")) {
+                        subcategories = querySubcategoriesOR(connection, checkedCategories);
+                    } else {
+                        subcategories = querySubcategoriesAND(connection, checkedCategories);
+                    }
                     subcategoryList.setPreferredSize(new Dimension(200, subcategories.size() * 23));
 
                     for (String subcategory : subcategories) {
@@ -361,8 +366,14 @@ public class HW3 extends JDialog {
                                 JList attributesList = new JList();
                                 attributesList.setLayout(new BoxLayout(attributesList, BoxLayout.PAGE_AXIS));
 
-                                List<String> attributes = queryAttributesOR(connection, checkedCategories,
-                                        checkedSubcategories);
+                                List<String> attributes = new ArrayList<String>();
+                                if (BU_SEARCH_CRITERIA.equals("OR")) {
+                                    attributes = queryAttributesOR(connection, checkedCategories,
+                                            checkedSubcategories);
+                                } else {
+                                    attributes = queryAttributesAND(connection, checkedCategories,
+                                            checkedSubcategories);
+                                }
                                 attributesList.setPreferredSize(new Dimension(200, attributes.size() * 23));
 
                                 for (String attr : attributes) {
@@ -419,17 +430,32 @@ public class HW3 extends JDialog {
         if (checkedCategories.size() == 0) {
             JOptionPane.showMessageDialog(null, "Category selection is required!");
         } else {
-            // category search only
-            if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
-                categorySearch(conn);
-            }
-            // category and subcategory search
-            else if (checkedAttributes.isEmpty()) {
-                categoryAndSubcategorySearch(conn);
-            }
-            // category and subcategory and attribute search
-            else {
-                categoryAndSubcategoryAndAttributeSearch(conn);
+            if (BU_SEARCH_CRITERIA.equals("OR")) {
+                // category search only
+                if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
+                    categorySearchOR(conn);
+                }
+                // category and subcategory search
+                else if (checkedAttributes.isEmpty()) {
+                    categoryAndSubcategorySearchOR(conn);
+                }
+                // category and subcategory and attribute search
+                else {
+                    categoryAndSubcategoryAndAttributeSearchOR(conn);
+                }
+            } else {
+                // category search only
+                if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
+                    categorySearchAND(conn);
+                }
+                // category and subcategory search
+                else if (checkedAttributes.isEmpty()) {
+                    categoryAndSubcategorySearchAND(conn);
+                }
+                // category and subcategory and attribute search
+                else {
+                    categoryAndSubcategoryAndAttributeSearchAND(conn);
+                }
             }
         }
 
@@ -443,7 +469,12 @@ public class HW3 extends JDialog {
         checkedCategories.clear();
         checkedSubcategories.clear();
         checkedAttributes.clear();
-        // TODO Reset the UI to initial state
+        BU_SEARCH_CRITERIA = "OR";
+        USER_SEARCH_CRITERIA = "OR";
+        reviewDateFrom = null;
+        reviewDateTo = null;
+        memberSinceDate = null;
+
     }
 
     private void onCancel() {
@@ -545,6 +576,45 @@ public class HW3 extends JDialog {
 
     }
 
+    private static List<String> querySubcategoriesAND(Connection conn, List<String> checkedCategories) {
+
+        List<String> subcategories = new ArrayList<String>();
+
+        if (!checkedCategories.isEmpty()) {
+
+            try {
+                String categoryClause = "";
+                for (int i = 0; i < checkedCategories.size(); i++) {
+                    categoryClause += "CATEGORY = ? OR ";
+                }
+                categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+
+                String sql = "SELECT DISTINCT SUBCATEGORY FROM BU_SUBCATEGORY WHERE BU_ID IN " +
+                        "(SELECT BU_ID FROM BU_CATEGORY WHERE CATEGORY IN " +
+                        "(SELECT CATEGORY FROM CATEGORY WHERE (" + categoryClause + ")) " +
+                        "GROUP BY BU_ID HAVING COUNT(DISTINCT CATEGORY) = " + checkedCategories.size() + ")" +
+                        "ORDER BY SUBCATEGORY";
+
+                PreparedStatement ps = conn.prepareStatement(sql);
+                for (int i = 1; i <= checkedCategories.size(); i++) {
+                    ps.setString(i, checkedCategories.get(i - 1));
+                }
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    subcategories.add(rs.getString("SUBCATEGORY"));
+                }
+                rs.close();
+
+            } catch (SQLException e) {
+                System.out.println("Exception while querying for subcategories: " + e.getMessage());
+            }
+
+        }
+
+        return subcategories;
+
+    }
+
     private static List<String> queryAttributesOR(Connection conn, List<String> checkedCategories,
                                                   List<String> checkedSubcategories) {
 
@@ -593,7 +663,64 @@ public class HW3 extends JDialog {
 
     }
 
-    private void categorySearch(Connection conn) {
+    private static List<String> queryAttributesAND(Connection conn, List<String> checkedCategories,
+                                                  List<String> checkedSubcategories) {
+
+        List<String> attributes = new ArrayList<String>();
+
+        if (!checkedSubcategories.isEmpty()) {
+
+            try {
+                String categoryClause = "";
+                for (int i = 0; i < checkedCategories.size(); i++) {
+                    categoryClause += "?,";
+                }
+                categoryClause = categoryClause.substring(0, categoryClause.length() - 1);
+
+                String subcategoryClause = "";
+                for (int i = 0; i < checkedSubcategories.size(); i++) {
+                    subcategoryClause += "?,";
+                }
+                subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 1);
+
+                String sql =
+                        "SELECT DISTINCT ATTR_NAME, ATTR_VALUE\n" +
+                        "FROM BU_ATTRIBUTE\n" +
+                        "WHERE BU_ID IN (\n" +
+                        "SELECT DISTINCT Z.BU_ID FROM \n" +
+                        "(SELECT BU_ID FROM BU_SUBCATEGORY WHERE (SUBCATEGORY IN (" + subcategoryClause + ")) " +
+                                "GROUP BY BU_ID HAVING COUNT (DISTINCT SUBCATEGORY) = " + checkedSubcategories.size() + ") Z,\n" +
+                        "(SELECT BU_ID FROM BU_CATEGORY WHERE (CATEGORY IN (" + categoryClause + ")) " +
+                                "GROUP BY BU_ID HAVING COUNT(DISTINCT CATEGORY) = " + checkedCategories.size() + ") Y " +
+                                "WHERE (Z.BU_ID = Y.BU_ID)\n" +
+                        ") ORDER BY ATTR_NAME";
+
+                System.out.println(sql);
+                PreparedStatement ps = conn.prepareStatement(sql);
+                int id = 0;
+                for (int i = 1; i <= checkedSubcategories.size(); i++) {
+                    ps.setString((id += 1), checkedSubcategories.get(i - 1));
+                }
+                for (int i = 1; i <= checkedCategories.size(); i++) {
+                    ps.setString((id += 1), checkedCategories.get(i - 1));
+                }
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    String attr = rs.getString("ATTR_NAME") + " = " + rs.getString("ATTR_VALUE");
+                    attributes.add(attr);
+                }
+                rs.close();
+            } catch (SQLException e) {
+                System.out.println("Exception while querying for attributes: " + e.getMessage());
+            }
+
+        }
+
+        return attributes;
+
+    }
+
+    private void categorySearchOR(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
@@ -603,11 +730,26 @@ public class HW3 extends JDialog {
 
         String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
 
-        businessSearchOR(conn, checkedCategories, sql);
+        businessSearch(conn, checkedCategories, sql);
 
     }
 
-    private void categoryAndSubcategorySearch(Connection conn) {
+    private void categorySearchAND(Connection conn) {
+
+        String categoryClause = "";
+        for (int i = 0; i < checkedCategories.size(); i++) {
+            categoryClause += "?,";
+        }
+        categoryClause = categoryClause.substring(0, categoryClause.length() - 1);
+
+        String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE (CATEGORY IN (" + categoryClause + ")) " +
+                "GROUP BY BU_ID HAVING COUNT(DISTINCT CATEGORY) = " + checkedCategories.size();
+
+        businessSearch(conn, checkedCategories, sql);
+
+    }
+
+    private void categoryAndSubcategorySearchOR(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
@@ -628,11 +770,38 @@ public class HW3 extends JDialog {
         items.addAll(checkedCategories);
         items.addAll(checkedSubcategories);
 
-        businessSearchOR(conn, items, sql);
+        businessSearch(conn, items, sql);
 
     }
 
-    private void categoryAndSubcategoryAndAttributeSearch(Connection conn) {
+    private void categoryAndSubcategorySearchAND(Connection conn) {
+
+        String categoryClause = "";
+        for (int i = 0; i < checkedCategories.size(); i++) {
+            categoryClause += "?,";
+        }
+        categoryClause = categoryClause.substring(0, categoryClause.length() - 1);
+
+        String subcategoryClause = "";
+        for (int i = 0; i < checkedSubcategories.size(); i++) {
+            subcategoryClause += "?,";
+        }
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 1);
+
+        String sql = "SELECT DISTINCT Z.BU_ID FROM " +
+                "(SELECT BU_ID FROM BU_SUBCATEGORY WHERE (SUBCATEGORY IN (" + subcategoryClause + ")) " +
+                "GROUP BY BU_ID HAVING COUNT (DISTINCT SUBCATEGORY) = " + checkedSubcategories.size() + ") Z, " +
+                "(SELECT BU_ID FROM BU_CATEGORY WHERE (CATEGORY IN (" + categoryClause + ")) " +
+                "GROUP BY BU_ID HAVING COUNT(DISTINCT CATEGORY) = " + checkedCategories.size() + ") Y WHERE (Z.BU_ID = Y.BU_ID)";
+
+        List<String> items = new ArrayList<String>();
+        items.addAll(checkedSubcategories);
+        items.addAll(checkedCategories);
+        businessSearch(conn, items, sql);
+
+    }
+
+    private void categoryAndSubcategoryAndAttributeSearchOR(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
@@ -666,11 +835,53 @@ public class HW3 extends JDialog {
         items.addAll(checkedSubcategories);
         items.addAll(attrItems);
 
-        businessSearchOR(conn, items, sql);
+        businessSearch(conn, items, sql);
 
     }
 
-    private void businessSearchOR(Connection conn, List<String> items, String inClause) {
+    private void categoryAndSubcategoryAndAttributeSearchAND(Connection conn) {
+
+        String categoryClause = "";
+        for (int i = 0; i < checkedCategories.size(); i++) {
+            categoryClause += "?,";
+        }
+        categoryClause = categoryClause.substring(0, categoryClause.length() - 1);
+
+        String subcategoryClause = "";
+        for (int i = 0; i < checkedSubcategories.size(); i++) {
+            subcategoryClause += "?,";
+        }
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 1);
+
+        String attributeClause = "";
+        List<String> attrItems = new ArrayList<String>();
+        for (String checkedAttribute : checkedAttributes) {
+            attributeClause += "(ATTR_NAME = ? AND ATTR_VALUE = ?) " + BU_SEARCH_CRITERIA + " ";
+            String k = checkedAttribute.split(" = ")[0];
+            String v = checkedAttribute.split(" = ")[1];
+            attrItems.add(k);
+            attrItems.add(v);
+        }
+        attributeClause = attributeClause.substring(0, attributeClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
+
+        String sql = "SELECT DISTINCT BU_ID FROM BU_ATTRIBUTE WHERE (" + attributeClause + ") AND BU_ID IN " +
+                "(SELECT DISTINCT Z.BU_ID FROM (SELECT BU_ID FROM BU_SUBCATEGORY WHERE " +
+                "(SUBCATEGORY IN (" + subcategoryClause + ")) " +
+                "GROUP BY BU_ID HAVING COUNT (DISTINCT SUBCATEGORY) = " + checkedSubcategories.size() + ") Z, " +
+                "(SELECT BU_ID FROM BU_CATEGORY WHERE (CATEGORY IN (" + categoryClause + ")) " +
+                "GROUP BY BU_ID HAVING COUNT(DISTINCT CATEGORY) = " + checkedCategories.size() + ") Y " +
+                "WHERE (Z.BU_ID = Y.BU_ID))";
+
+        List<String> items = new ArrayList<String>();
+        items.addAll(attrItems);
+        items.addAll(checkedSubcategories);
+        items.addAll(checkedCategories);
+
+        businessSearch(conn, items, sql);
+
+    }
+
+    private void businessSearch(Connection conn, List<String> items, String inClause) {
 
         System.out.println("------------------------------------------------------------");
         System.out.println("Searching... ");
