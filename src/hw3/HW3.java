@@ -14,6 +14,7 @@ import java.sql.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 import java.util.List;
 
 public class HW3 extends JDialog {
@@ -26,11 +27,6 @@ public class HW3 extends JDialog {
     private JTextField textField3;
     private JTextField textField4;
     private JTextField textField5;
-    private JComboBox comboBox1;
-    private JComboBox comboBox2;
-    private JComboBox comboBox3;
-    private JComboBox comboBox4;
-    private JComboBox comboBox5;
     private JButton buttonExecute;
     private JPanel footer;
     private JPanel buttons;
@@ -41,9 +37,7 @@ public class HW3 extends JDialog {
     private JPanel queryPanel;
     private JPanel resultsPanel;
     private JPanel middlePanel;
-    private JPanel labelsPanel;
     private JPanel textFieldsPanel;
-    private JPanel selectsPanel;
     private JPanel attributesPanel;
     private JPanel subcategoryPanel;
     private JScrollPane categoryPane;
@@ -54,11 +48,11 @@ public class HW3 extends JDialog {
     private JComboBox businessSearchCriteriaComboBox;
     private JButton buttonClear;
     private JComboBox reviewStarsComboBox;
-    private JTextField reviewVoteValue;
+    private JTextField reviewStarsValue;
     private JComboBox reviewVoteComboBox;
     private JComboBox reviewVoteOpComboBox;
-    private JTextField voteValue;
-    private JPanel reviewDatePanel;
+    private JTextField reviewVoteValue;
+    private JPanel reviewDateFromPanel;
     private JPanel reviewVotePanel;
     private JLabel voteLabel;
     private JLabel voteValueLabel;
@@ -67,6 +61,16 @@ public class HW3 extends JDialog {
     private JLabel reviewValueLabel;
     private JPanel searchCriteriaPanel;
     private JLabel businessSearchCriteriaLabel;
+    private JPanel usersLabelsPanel;
+    private JPanel usersComboBoxPanel;
+    private JComboBox comboBox1;
+    private JComboBox comboBox2;
+    private JComboBox comboBox3;
+    private JComboBox comboBox4;
+    private JComboBox comboBox5;
+    private JPanel reviewDateToPanel;
+    private JDatePickerImpl reviewDatePickerFrom;
+    private JDatePickerImpl reviewDatePickerTo;
 
 
     private String SEARCH_CRITERIA = "OR";
@@ -75,11 +79,13 @@ public class HW3 extends JDialog {
     private List<String> checkedSubcategories = new ArrayList<String>();
     private List<String> checkedAttributes = new ArrayList<String>();
 
-    private String reviewDateFrom = "";
-    private String reviewDateTo = "";
+    private Date reviewDateFrom = null;
+    private Date reviewDateTo = null;
     private String reviewStarsOp = "=";
+    private int reviewStars = 0;
     private String reviewVoteType = "useful";
     private String reviewVoteOp = "=";
+    private int reviewVote = 0;
 
 
     public HW3(Connection connection, List<String> categories) {
@@ -116,6 +122,7 @@ public class HW3 extends JDialog {
             }
         });
 
+        reviewStarsComboBox.addItem("");
         reviewStarsComboBox.addItem("=");
         reviewStarsComboBox.addItem("<");
         reviewStarsComboBox.addItem(">");
@@ -130,6 +137,7 @@ public class HW3 extends JDialog {
             }
         });
 
+        reviewVoteComboBox.addItem("");
         reviewVoteComboBox.addItem("useful");
         reviewVoteComboBox.addItem("funny");
         reviewVoteComboBox.addItem("cool");
@@ -141,6 +149,7 @@ public class HW3 extends JDialog {
             }
         });
 
+        reviewVoteOpComboBox.addItem("");
         reviewVoteOpComboBox.addItem("=");
         reviewVoteOpComboBox.addItem("<");
         reviewVoteOpComboBox.addItem(">");
@@ -156,20 +165,62 @@ public class HW3 extends JDialog {
         });
 
 
-        UtilDateModel model = new UtilDateModel();
+        UtilDateModel fromModel = new UtilDateModel();
+        UtilDateModel toModel = new UtilDateModel();
+
         Properties p = new Properties();
         p.put("text.today", "Today");
         p.put("text.month", "Month");
         p.put("text.year", "Year");
-        JDatePanelImpl datePanel = new JDatePanelImpl(model, p);
-        JDatePickerImpl reviewDatePickerFrom = new JDatePickerImpl(datePanel, new DateLabelFormatter());
-        JDatePickerImpl reviewDatePickerTo = new JDatePickerImpl(datePanel, new DateLabelFormatter());
 
-        reviewDatePanel.setLayout(new FlowLayout());
-        reviewDatePanel.add(new JLabel("From"));
-        reviewDatePanel.add(reviewDatePickerFrom);
-        reviewDatePanel.add(new JLabel("To"));
-        reviewDatePanel.add(reviewDatePickerTo);
+        JDatePanelImpl datePanelFrom = new JDatePanelImpl(fromModel, p);
+        reviewDatePickerFrom = new JDatePickerImpl(datePanelFrom, new DateLabelFormatter());
+
+        JDatePanelImpl datePanelTo = new JDatePanelImpl(toModel, p);
+        reviewDatePickerTo = new JDatePickerImpl(datePanelTo, new DateLabelFormatter());
+
+        reviewDateFromPanel.setLayout(new FlowLayout());
+        reviewDateFromPanel.add(new JLabel("From"));
+        reviewDateFromPanel.add(reviewDatePickerFrom);
+
+        reviewDateToPanel.setLayout(new FlowLayout());
+        reviewDateToPanel.add(new JLabel("To"));
+        reviewDateToPanel.add(reviewDatePickerTo);
+
+        reviewDatePickerFrom.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
+                Date from = (Date) picker.getModel().getValue();
+                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
+                String newFormat = "dd-MMM-yy";
+                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
+                dateFormatter.applyPattern(newFormat);
+                String fromStr = dateFormatter.format(from);
+                try {
+                    reviewDateFrom = dateFormatter.parse(fromStr);
+                } catch (ParseException e1) {
+                    System.out.println("Exception while parsing review date from: " + e1.getMessage());
+                }
+            }
+        });
+        reviewDatePickerTo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
+                Date to = (Date) picker.getModel().getValue();
+                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
+                String newFormat = "dd-MMM-yy";
+                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
+                dateFormatter.applyPattern(newFormat);
+                String toStr = dateFormatter.format(to);
+                try {
+                    reviewDateTo = dateFormatter.parse(toStr);
+                } catch (ParseException e1) {
+                    System.out.println("Exception while parsing review date to: " + e1.getMessage());
+                }
+            }
+        });
 
         // call onCancel() when cross is clicked
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -193,7 +244,6 @@ public class HW3 extends JDialog {
         reviewPanel.setPreferredSize(new Dimension(250, 500));
 
         resultsPanel.setPreferredSize(new Dimension(750, 250));
-        queryPanel.setPreferredSize(new Dimension(250, 250));
 
         // Add to UI
         JList categoryList = new JList();
@@ -600,11 +650,12 @@ public class HW3 extends JDialog {
                 resultsScrollPane.setViewportView(resultsTable);
                 resultsScrollPane.repaint();
 
-                resultsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener(){
+                resultsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
                     public void valueChanged(ListSelectionEvent event) {
-                        String buName = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
-                        System.out.println(resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString());
-                        reviewSearch(conn, buName);
+                        if (resultsTable.getSelectedRow() > -1) {
+                            String buName = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
+                            reviewSearch(conn, buName);
+                        }
                     }
                 });
 
@@ -631,8 +682,51 @@ public class HW3 extends JDialog {
 
             String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
                     "(R.BU_ID = '" + buId + "') AND (R.USER_ID = Y.USER_ID)";
-            Statement stmt2 = conn.createStatement();
-            ResultSet rs2 = stmt2.executeQuery(sql2);
+
+            boolean filterByDate = false;
+            if (reviewDateFrom != null) {
+                sql2 += " AND (R.REVIEW_DATE >= ? AND R.REVIEW_DATE <= ?)";
+                if (reviewDateTo == null) {
+                    reviewDateTo = new Date();
+                }
+                filterByDate = true;
+            }
+
+            boolean filterByStars = false;
+            String starsOp = (String) reviewStarsComboBox.getSelectedItem();
+            String stars = (String) reviewStarsValue.getText();
+            if (!starsOp.equals("") && !stars.equals("")) {
+                sql2 += " AND (R.STARS " + starsOp + "?)";
+                filterByStars = true;
+            }
+
+            boolean filterByVotes = false;
+            String voteOp = (String) reviewVoteOpComboBox.getSelectedItem();
+            String voteType = (String) reviewVoteComboBox.getSelectedItem();
+            String voteValue = (String) reviewVoteValue.getText();
+            if (!voteType.equals("") && !voteOp.equals("") && !voteValue.equals("")) {
+                sql2 += " AND (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
+                filterByVotes = true;
+            }
+            System.out.println(sql2);
+
+            // set values
+            PreparedStatement ps = conn.prepareStatement(sql2);
+            int id = 0;
+            if (filterByDate) {
+                ps.setDate((id+=1), new java.sql.Date(reviewDateFrom.getTime()));
+                ps.setDate((id+=1), new java.sql.Date(reviewDateTo.getTime()));
+            }
+
+            if (filterByStars) {
+                ps.setInt((id+=1), Integer.parseInt(stars));
+            }
+
+            if (filterByVotes) {
+                ps.setInt((id+=1), Integer.parseInt(voteValue));
+            }
+
+            ResultSet rs2 = ps.executeQuery();
             DefaultTableModel model = buildTableModel(rs2);
             rs2.close();
 
@@ -641,7 +735,6 @@ public class HW3 extends JDialog {
                 resultsScrollPane.add(resultsTable);
                 resultsScrollPane.setViewportView(resultsTable);
                 resultsScrollPane.repaint();
-
             }
 
         } catch (SQLException e) {
@@ -653,7 +746,7 @@ public class HW3 extends JDialog {
 
     public class DateLabelFormatter extends JFormattedTextField.AbstractFormatter {
 
-        private String datePattern = "yyyy-MM-dd";
+        private String datePattern = "dd-MMM-yy";
         private SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
 
         @Override
