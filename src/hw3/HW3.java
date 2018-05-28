@@ -8,6 +8,7 @@ import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
+import javax.xml.transform.Result;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
@@ -436,7 +437,7 @@ public class HW3 extends JDialog {
     }
 
     private void onUserSearch(Connection conn) {
-
+        userSearch(conn);
     }
 
     private void onClear() {
@@ -788,25 +789,115 @@ public class HW3 extends JDialog {
 
     }
 
-    public class DateLabelFormatter extends JFormattedTextField.AbstractFormatter {
+    private void userSearch(Connection conn) {
 
-        private String datePattern = "dd-MMM-yy";
-        private SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
+        System.out.print("Searching... ");
+        try {
 
-        @Override
-        public Object stringToValue(String text) throws ParseException {
-            return dateFormatter.parseObject(text);
-        }
+            String sql = "SELECT Y.USER_NAME, Y.YELPING_SINCE, Y.AVG_STARS FROM YELP_USER Y";
 
-        @Override
-        public String valueToString(Object value) throws ParseException {
-            if (value != null) {
-                Calendar cal = (Calendar) value;
-                return dateFormatter.format(cal.getTime());
+            boolean filterByMemberSince = false;
+            String memberSinceAttr = "";
+            if (memberSinceDate != null) {
+                memberSinceAttr = "(Y.YELPING_SINCE >= ?)";
+                filterByMemberSince = true;
             }
 
-            return "";
+            boolean filterByReviewCount = false;
+            String rcOp = (String) userReviewCountComboBox.getSelectedItem();
+            String reviewCount = (String) userReviewCountValue.getText();
+            String reviewCountAttr = "";
+            if (!rcOp.equals("Select operator") && !reviewCount.equals("")) {
+                reviewCountAttr = "(Y.REVIEW_COUNT " + rcOp + " ?)";
+                filterByReviewCount = true;
+            }
+
+            boolean filterByNumberOfFriends = false;
+            String nofOp = (String) userNOFComboBox.getSelectedItem();
+            String nof = (String) userNOFValue.getText();
+            String nofAttr = "";
+            if (!nofOp.equals("Select operator") && !nof.equals("")) {
+                nofAttr = "(Y.NUM_OF_FRIENDS " + nofOp + " ?)";
+                filterByNumberOfFriends = true;
+            }
+
+            boolean filterByAvgStars = false;
+            String avgStarsOp = (String) userAvgStarsComboBox.getSelectedItem();
+            String avgStars = (String) userAvgStarsValue.getText();
+            String avgStarsAttr = "";
+            if (!avgStarsOp.equals("Select operator") && !avgStars.equals("")) {
+                avgStarsAttr = "(Y.AVG_STARS " + avgStarsOp + " ?)";
+                filterByAvgStars = true;
+            }
+
+            boolean filterByNumberOfVotes = false;
+            String novOp = (String) userNOVComboBox.getSelectedItem();
+            String nov = (String) userNOVValue.getText();
+            String novAttr = "";
+            if (!novOp.equals("Select operator") && !nov.equals("")) {
+                novAttr = "(Y.NUM_OF_VOTES " + novOp + " ?)";
+                filterByNumberOfVotes = true;
+            }
+
+            if (filterByMemberSince || filterByReviewCount || filterByNumberOfFriends || filterByAvgStars || filterByNumberOfVotes) {
+                String innerQuery = "";
+                if (filterByMemberSince) {
+                    innerQuery += memberSinceAttr + " " + USER_SEARCH_CRITERIA + " ";
+                }
+                if (filterByReviewCount) {
+                    innerQuery += reviewCountAttr + " " + USER_SEARCH_CRITERIA + " ";
+                }
+                if (filterByNumberOfFriends) {
+                    innerQuery += nofAttr + " " + USER_SEARCH_CRITERIA + " ";
+                }
+                if (filterByAvgStars) {
+                    innerQuery += avgStarsAttr + " " + USER_SEARCH_CRITERIA + " ";
+                }
+                if (filterByNumberOfVotes) {
+                    innerQuery += novAttr + " " + USER_SEARCH_CRITERIA + " ";
+                }
+                innerQuery = innerQuery.substring(0, innerQuery.length() - (USER_SEARCH_CRITERIA.length() + 2));
+                sql += " WHERE (" + innerQuery + ")";
+            }
+
+            System.out.println(sql);
+            PreparedStatement ps = conn.prepareStatement(sql);
+
+            int id = 0;
+            if (filterByMemberSince || filterByReviewCount || filterByNumberOfFriends || filterByAvgStars || filterByNumberOfVotes) {
+                String innerQuery = "";
+                if (filterByMemberSince) {
+                    ps.setDate((id+=1), new java.sql.Date(memberSinceDate.getTime()));
+                }
+                if (filterByReviewCount) {
+                    ps.setInt((id+=1), Integer.parseInt(reviewCount));
+                }
+                if (filterByNumberOfFriends) {
+                    ps.setInt((id+=1), Integer.parseInt(nof));
+                }
+                if (filterByAvgStars) {
+                    ps.setFloat((id+=1), Float.parseFloat(avgStars));
+                }
+                if (filterByNumberOfVotes) {
+                    ps.setInt((id+=1), Integer.parseInt(nov));
+                }
+            }
+
+            ResultSet rs = ps.executeQuery();
+            DefaultTableModel model = buildTableModel(rs);
+            rs.close();
+
+            if (model != null) {
+                JTable resultsTable = new JTable(model);
+                resultsScrollPane.add(resultsTable);
+                resultsScrollPane.setViewportView(resultsTable);
+                resultsScrollPane.repaint();
+            }
+
+        } catch(SQLException e) {
+            System.out.println("Exception while querying for users: " + e.getMessage());
         }
+        System.out.println("Done.");
 
     }
 
@@ -854,4 +945,27 @@ public class HW3 extends JDialog {
 
         return null;
     }
+
+    public class DateLabelFormatter extends JFormattedTextField.AbstractFormatter {
+
+        private String datePattern = "dd-MMM-yy";
+        private SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
+
+        @Override
+        public Object stringToValue(String text) throws ParseException {
+            return dateFormatter.parseObject(text);
+        }
+
+        @Override
+        public String valueToString(Object value) throws ParseException {
+            if (value != null) {
+                Calendar cal = (Calendar) value;
+                return dateFormatter.format(cal.getTime());
+            }
+
+            return "";
+        }
+
+    }
+
 }

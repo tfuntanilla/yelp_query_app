@@ -27,12 +27,12 @@ public class CreateIndex {
             System.out.println("Created business_idx on business.");
 
             String sql5 = "CREATE INDEX review_idx ON review " +
-                    "(bu_id, user_id, stars, review_date, text_content)";
+                    "(bu_id, user_id, stars, review_date)";
             stmt.executeUpdate(sql5);
             System.out.println("Created review_idx on review.");
 
             String sql6 = "CREATE INDEX yelp_user_idx ON yelp_user " +
-                    "(user_id, user_name, yelping_since, review_count, average_stars)";
+                    "(user_id, user_name, yelping_since, review_count, avg_stars)";
             stmt.executeUpdate(sql6);
             System.out.println("Created yelp_user_idx on yelp_user.");
 

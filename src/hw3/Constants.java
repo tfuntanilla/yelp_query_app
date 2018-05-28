@@ -14,13 +14,9 @@ public class Constants {
 			"business",
 			"category",
 			"bu_category",
-			"subcategory",
 			"bu_subcategory",
-			"attribute",
 			"bu_attribute",
 			"yelp_user",
-			"friend",
-			"elite_years",
 			"review"
 	};
 	
