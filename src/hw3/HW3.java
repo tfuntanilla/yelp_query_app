@@ -8,7 +8,6 @@ import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
-import javax.xml.transform.Result;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
@@ -699,7 +698,7 @@ public class HW3 extends JDialog {
                     public void valueChanged(ListSelectionEvent event) {
                         if (resultsTable.getSelectedRow() > -1) {
                             String buName = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
-                            reviewSearch(conn, buName);
+                            reviewSearchByBU(conn, buName);
                         }
                     }
                 });
@@ -712,9 +711,8 @@ public class HW3 extends JDialog {
         System.out.print("Done.\n");
     }
 
-    private void reviewSearch(Connection conn, String businessName) {
+    private void reviewSearchByBU(Connection conn, String businessName) {
 
-        System.out.print("Searching... ");
         try {
             String sql1 = "SELECT BU_ID FROM BUSINESS WHERE (NAME = '" + businessName + "')";
             Statement stmt1 = conn.createStatement();
@@ -725,12 +723,50 @@ public class HW3 extends JDialog {
             }
             rs1.close();
 
-            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
+            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
                     "(R.BU_ID = '" + buId + "') AND (R.USER_ID = Y.USER_ID)";
+
+            reviewSearch(conn, sql2);
+
+        } catch (SQLException e) {
+            System.out.println("Exception while querying for business reviews: " + e.getMessage());
+        }
+        System.out.println("Done.");
+
+    }
+
+    private void reviewSearchByUser(Connection conn, String userName) {
+
+        try {
+            String sql1 = "SELECT USER_ID FROM YELP_USER WHERE (USER_NAME = '" + userName + "')";
+            Statement stmt1 = conn.createStatement();
+            ResultSet rs1 = stmt1.executeQuery(sql1);
+            String userId = "";
+            while (rs1.next()) {
+                userId = rs1.getString("USER_ID");
+            }
+            rs1.close();
+
+            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
+                    "(Y.USER_ID = '" + userId + "' AND R.USER_ID = '" + userId + "')";
+
+            reviewSearch(conn, sql2);
+
+        } catch (SQLException e) {
+            System.out.println("Exception while querying for user reviews: " + e.getMessage());
+        }
+        System.out.println("Done.");
+
+    }
+
+    private void reviewSearch(Connection conn, String sql) {
+
+        System.out.print("Searching... ");
+        try {
 
             boolean filterByDate = false;
             if (reviewDateFrom != null) {
-                sql2 += " AND (R.REVIEW_DATE >= ? AND R.REVIEW_DATE <= ?)";
+                sql += " AND (R.REVIEW_DATE >= ? AND R.REVIEW_DATE <= ?)";
                 if (reviewDateTo == null) {
                     reviewDateTo = new Date();
                 }
@@ -741,7 +777,7 @@ public class HW3 extends JDialog {
             String starsOp = (String) reviewStarsComboBox.getSelectedItem();
             String stars = (String) reviewStarsValue.getText();
             if (!starsOp.equals("Select operator") && !stars.equals("")) {
-                sql2 += " AND (R.STARS " + starsOp + " ?)";
+                sql += " AND (R.STARS " + starsOp + " ?)";
                 filterByStars = true;
             }
 
@@ -750,13 +786,13 @@ public class HW3 extends JDialog {
             String voteType = (String) reviewVoteComboBox.getSelectedItem();
             String voteValue = (String) reviewVoteValue.getText();
             if (!voteType.equals("Select vote type") && !voteOp.equals("Select operator") && !voteValue.equals("")) {
-                sql2 += " AND (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
+                sql += " AND (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
                 filterByVotes = true;
             }
-            System.out.println(sql2);
+            System.out.println(sql);
 
             // set values
-            PreparedStatement ps = conn.prepareStatement(sql2);
+            PreparedStatement ps = conn.prepareStatement(sql);
             int id = 0;
             if (filterByDate) {
                 ps.setDate((id+=1), new java.sql.Date(reviewDateFrom.getTime()));
@@ -782,10 +818,9 @@ public class HW3 extends JDialog {
                 resultsScrollPane.repaint();
             }
 
-        } catch (SQLException e) {
+        } catch(SQLException e) {
             System.out.println("Exception while querying for reviews: " + e.getMessage());
         }
-        System.out.println("Done.");
 
     }
 
@@ -892,6 +927,16 @@ public class HW3 extends JDialog {
                 resultsScrollPane.add(resultsTable);
                 resultsScrollPane.setViewportView(resultsTable);
                 resultsScrollPane.repaint();
+
+                resultsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+                    public void valueChanged(ListSelectionEvent event) {
+                        if (resultsTable.getSelectedRow() > -1) {
+                            String userName = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
+                            reviewSearchByUser(conn, userName);
+                        }
+                    }
+                });
+
             }
 
         } catch(SQLException e) {
