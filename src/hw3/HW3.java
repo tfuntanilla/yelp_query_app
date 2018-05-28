@@ -1,15 +1,18 @@
 package hw3;
 
-import javafx.scene.control.ComboBox;
+import org.jdatepicker.impl.JDatePanelImpl;
+import org.jdatepicker.impl.JDatePickerImpl;
+import org.jdatepicker.impl.UtilDateModel;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 
@@ -48,13 +51,35 @@ public class HW3 extends JDialog {
     private JScrollPane subcategoryPane;
     private JScrollPane attributesPane;
     private JScrollPane resultsScrollPane;
-    private JComboBox businessANDORSelect;
+    private JComboBox businessSearchCriteriaComboBox;
     private JButton buttonClear;
+    private JComboBox reviewStarsComboBox;
+    private JTextField reviewVoteValue;
+    private JComboBox reviewVoteComboBox;
+    private JComboBox reviewVoteOpComboBox;
+    private JTextField voteValue;
+    private JPanel reviewDatePanel;
+    private JPanel reviewVotePanel;
+    private JLabel voteLabel;
+    private JLabel voteValueLabel;
+    private JPanel reviewStarsPanel;
+    private JLabel reviewStarsLabel;
+    private JLabel reviewValueLabel;
+    private JPanel searchCriteriaPanel;
+    private JLabel businessSearchCriteriaLabel;
+
 
     private String SEARCH_CRITERIA = "OR";
+
     private List<String> checkedCategories = new ArrayList<String>();
     private List<String> checkedSubcategories = new ArrayList<String>();
     private List<String> checkedAttributes = new ArrayList<String>();
+
+    private String reviewDateFrom = "";
+    private String reviewDateTo = "";
+    private String reviewStarsOp = "=";
+    private String reviewVoteType = "useful";
+    private String reviewVoteOp = "=";
 
 
     public HW3(Connection connection, List<String> categories) {
@@ -81,15 +106,70 @@ public class HW3 extends JDialog {
             }
         });
 
-        businessANDORSelect.addItem("OR");
-        businessANDORSelect.addItem("AND");
-        businessANDORSelect.addItemListener(new ItemListener() {
+        businessSearchCriteriaComboBox.addItem("OR");
+        businessSearchCriteriaComboBox.addItem("AND");
+        businessSearchCriteriaComboBox.addItemListener(new ItemListener() {
             @Override
             public void itemStateChanged(ItemEvent e) {
                 JComboBox cb = (JComboBox) e.getSource();
                 SEARCH_CRITERIA = (String) cb.getSelectedItem();
             }
         });
+
+        reviewStarsComboBox.addItem("=");
+        reviewStarsComboBox.addItem("<");
+        reviewStarsComboBox.addItem(">");
+        reviewStarsComboBox.addItem("<=");
+        reviewStarsComboBox.addItem(">=");
+        reviewStarsComboBox.addItem("<>");
+        reviewStarsComboBox.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                JComboBox cb = (JComboBox) e.getSource();
+                reviewStarsOp = (String) cb.getSelectedItem();
+            }
+        });
+
+        reviewVoteComboBox.addItem("useful");
+        reviewVoteComboBox.addItem("funny");
+        reviewVoteComboBox.addItem("cool");
+        reviewVoteComboBox.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                JComboBox cb = (JComboBox) e.getSource();
+                reviewVoteType = (String) cb.getSelectedItem();
+            }
+        });
+
+        reviewVoteOpComboBox.addItem("=");
+        reviewVoteOpComboBox.addItem("<");
+        reviewVoteOpComboBox.addItem(">");
+        reviewVoteOpComboBox.addItem("<=");
+        reviewVoteOpComboBox.addItem(">=");
+        reviewVoteOpComboBox.addItem("<>");
+        reviewVoteOpComboBox.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                JComboBox cb = (JComboBox) e.getSource();
+                reviewVoteOp = (String) cb.getSelectedItem();
+            }
+        });
+
+
+        UtilDateModel model = new UtilDateModel();
+        Properties p = new Properties();
+        p.put("text.today", "Today");
+        p.put("text.month", "Month");
+        p.put("text.year", "Year");
+        JDatePanelImpl datePanel = new JDatePanelImpl(model, p);
+        JDatePickerImpl reviewDatePickerFrom = new JDatePickerImpl(datePanel, new DateLabelFormatter());
+        JDatePickerImpl reviewDatePickerTo = new JDatePickerImpl(datePanel, new DateLabelFormatter());
+
+        reviewDatePanel.setLayout(new FlowLayout());
+        reviewDatePanel.add(new JLabel("From"));
+        reviewDatePanel.add(reviewDatePickerFrom);
+        reviewDatePanel.add(new JLabel("To"));
+        reviewDatePanel.add(reviewDatePickerTo);
 
         // call onCancel() when cross is clicked
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -110,10 +190,10 @@ public class HW3 extends JDialog {
         categoryPane.setPreferredSize(new Dimension(250, 200));
         subcategoryPane.setPreferredSize(new Dimension(250, 200));
         attributesPane.setPreferredSize(new Dimension(250, 200));
+        reviewPanel.setPreferredSize(new Dimension(250, 500));
 
-        reviewPanel.setPreferredSize(new Dimension(500, 200));
         resultsPanel.setPreferredSize(new Dimension(750, 250));
-        queryPanel.setPreferredSize(new Dimension(500, 250));
+        queryPanel.setPreferredSize(new Dimension(250, 250));
 
         // Add to UI
         JList categoryList = new JList();
@@ -288,8 +368,8 @@ public class HW3 extends JDialog {
 
         List<String> categories = new ArrayList<String>();
 
-        String sql = "SELECT C.CATEGORY FROM CATEGORY C";
         try {
+            String sql = "SELECT C.CATEGORY FROM CATEGORY C";
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
             while (rs.next()) {
@@ -310,15 +390,16 @@ public class HW3 extends JDialog {
 
         if (!checkedCategories.isEmpty()) {
 
-            String categoryClause = "";
-            for (int i = 0; i < checkedCategories.size(); i++) {
-                categoryClause += "A.CATEGORY = ? OR ";
-            }
-            categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
-
-            String sql = "SELECT DISTINCT B.SUBCATEGORY FROM BU_CATEGORY A, BU_SUBCATEGORY B WHERE " +
-                    "((" + categoryClause + ") AND (A.BU_ID = B.BU_ID)) ORDER BY B.SUBCATEGORY";
             try {
+                String categoryClause = "";
+                for (int i = 0; i < checkedCategories.size(); i++) {
+                    categoryClause += "A.CATEGORY = ? OR ";
+                }
+                categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+
+                String sql = "SELECT DISTINCT B.SUBCATEGORY FROM BU_CATEGORY A, BU_SUBCATEGORY B WHERE " +
+                        "((" + categoryClause + ") AND (A.BU_ID = B.BU_ID)) ORDER BY B.SUBCATEGORY";
+
                 PreparedStatement ps = conn.prepareStatement(sql);
                 for (int i = 1; i <= checkedCategories.size(); i++) {
                     ps.setString(i, checkedCategories.get(i - 1));
@@ -346,22 +427,23 @@ public class HW3 extends JDialog {
 
         if (!checkedSubcategories.isEmpty()) {
 
-            String categoryClause = "";
-            for (int i = 0; i < checkedCategories.size(); i++) {
-                categoryClause += "A.CATEGORY = ? OR ";
-            }
-            categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
-
-            String subcategoryClause = "";
-            for (int i = 0; i < checkedSubcategories.size(); i++) {
-                subcategoryClause += "B.SUBCATEGORY = ? OR ";
-            }
-            subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
-
-            String sql = "SELECT DISTINCT C.ATTR_NAME, C.ATTR_VALUE FROM BU_CATEGORY A, BU_SUBCATEGORY B, " +
-                    "BU_ATTRIBUTE C WHERE ((" + categoryClause + ") AND (" + subcategoryClause + ") AND " +
-                    "(B.BU_ID = C.BU_ID)) ORDER BY C.ATTR_NAME";
             try {
+                String categoryClause = "";
+                for (int i = 0; i < checkedCategories.size(); i++) {
+                    categoryClause += "A.CATEGORY = ? OR ";
+                }
+                categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+
+                String subcategoryClause = "";
+                for (int i = 0; i < checkedSubcategories.size(); i++) {
+                    subcategoryClause += "B.SUBCATEGORY = ? OR ";
+                }
+                subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
+
+                String sql = "SELECT DISTINCT C.ATTR_NAME, C.ATTR_VALUE FROM BU_CATEGORY A, BU_SUBCATEGORY B, " +
+                        "BU_ATTRIBUTE C WHERE ((" + categoryClause + ") AND (" + subcategoryClause + ") AND " +
+                        "(B.BU_ID = C.BU_ID)) ORDER BY C.ATTR_NAME";
+
                 PreparedStatement ps = conn.prepareStatement(sql);
                 int id = 0;
                 for (int i = 1; i <= checkedCategories.size(); i++) {
@@ -520,7 +602,9 @@ public class HW3 extends JDialog {
 
                 resultsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener(){
                     public void valueChanged(ListSelectionEvent event) {
+                        String buName = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
                         System.out.println(resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString());
+                        reviewSearch(conn, buName);
                     }
                 });
 
@@ -532,9 +616,60 @@ public class HW3 extends JDialog {
         System.out.print("Done.\n");
     }
 
-    private void reviewSearch(String businessName) {
+    private void reviewSearch(Connection conn, String businessName) {
 
+        System.out.print("Searching... ");
+        try {
+            String sql1 = "SELECT BU_ID FROM BUSINESS WHERE (NAME = '" + businessName + "')";
+            Statement stmt1 = conn.createStatement();
+            ResultSet rs1 = stmt1.executeQuery(sql1);
+            String buId = "";
+            while (rs1.next()) {
+                buId = rs1.getString("BU_ID");
+            }
+            rs1.close();
 
+            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
+                    "(R.BU_ID = '" + buId + "') AND (R.USER_ID = Y.USER_ID)";
+            Statement stmt2 = conn.createStatement();
+            ResultSet rs2 = stmt2.executeQuery(sql2);
+            DefaultTableModel model = buildTableModel(rs2);
+            rs2.close();
+
+            if (model != null) {
+                JTable resultsTable = new JTable(model);
+                resultsScrollPane.add(resultsTable);
+                resultsScrollPane.setViewportView(resultsTable);
+                resultsScrollPane.repaint();
+
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Exception while querying for reviews: " + e.getMessage());
+        }
+        System.out.print("Done.\n");
+
+    }
+
+    public class DateLabelFormatter extends JFormattedTextField.AbstractFormatter {
+
+        private String datePattern = "yyyy-MM-dd";
+        private SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
+
+        @Override
+        public Object stringToValue(String text) throws ParseException {
+            return dateFormatter.parseObject(text);
+        }
+
+        @Override
+        public String valueToString(Object value) throws ParseException {
+            if (value != null) {
+                Calendar cal = (Calendar) value;
+                return dateFormatter.format(cal.getTime());
+            }
+
+            return "";
+        }
 
     }
 }

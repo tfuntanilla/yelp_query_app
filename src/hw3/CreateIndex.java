@@ -26,20 +26,20 @@ public class CreateIndex {
             stmt.executeUpdate(sql4);
             System.out.println("Created business_idx on business.");
 
-//            String sql4 = "CREATE INDEX yelp_user_idx ON yelp_user " +
-//                    "(user_id, user_name, yelping_since, review_count, average_stars)";
-//            stmt.executeUpdate(sql4);
-//            System.out.println("Created yelp_user_idx on yelp_user.");
-//
-//            String sql5 = "CREATE INDEX review_idx ON review " +
-//                    "(rev_id, bu_id, user_id, stars, review_date)";
-//            stmt.executeUpdate(sql5);
-//            System.out.println("Created review_idx on review.");
+            String sql5 = "CREATE INDEX review_idx ON review " +
+                    "(bu_id, user_id, stars, review_date, text_content)";
+            stmt.executeUpdate(sql5);
+            System.out.println("Created review_idx on review.");
+
+            String sql6 = "CREATE INDEX yelp_user_idx ON yelp_user " +
+                    "(user_id, user_name, yelping_since, review_count, average_stars)";
+            stmt.executeUpdate(sql6);
+            System.out.println("Created yelp_user_idx on yelp_user.");
 
             stmt.close();
 
             System.out.println("Done indexing.");
-        } catch(SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
