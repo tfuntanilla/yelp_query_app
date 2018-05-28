@@ -20,60 +20,81 @@ import java.util.List;
 public class HW3 extends JDialog {
 
     private JPanel contentPane;
-    private JButton buttonOK;
-    private JButton buttonCancel;
-    private JTextField textField1;
-    private JTextField textField2;
-    private JTextField textField3;
-    private JTextField textField4;
-    private JTextField textField5;
-    private JButton buttonExecute;
-    private JPanel footer;
-    private JPanel buttons;
+
     private JPanel topPanel;
-    private JPanel reviewPanel;
     private JPanel businessPanel;
-    private JPanel lastPanel;
-    private JPanel queryPanel;
-    private JPanel resultsPanel;
-    private JPanel middlePanel;
-    private JPanel textFieldsPanel;
-    private JPanel attributesPanel;
-    private JPanel subcategoryPanel;
-    private JScrollPane categoryPane;
     private JPanel categoryPanel;
+    private JScrollPane categoryPane;
+    private JPanel subcategoryPanel;
     private JScrollPane subcategoryPane;
+    private JPanel attributesPanel;
     private JScrollPane attributesPane;
-    private JScrollPane resultsScrollPane;
-    private JComboBox businessSearchCriteriaComboBox;
-    private JButton buttonClear;
-    private JComboBox reviewStarsComboBox;
-    private JTextField reviewStarsValue;
-    private JComboBox reviewVoteComboBox;
-    private JComboBox reviewVoteOpComboBox;
-    private JTextField reviewVoteValue;
-    private JPanel reviewDateFromPanel;
-    private JPanel reviewVotePanel;
-    private JLabel voteLabel;
-    private JLabel voteValueLabel;
-    private JPanel reviewStarsPanel;
-    private JLabel reviewStarsLabel;
-    private JLabel reviewValueLabel;
     private JPanel searchCriteriaPanel;
     private JLabel businessSearchCriteriaLabel;
-    private JPanel usersLabelsPanel;
-    private JPanel usersComboBoxPanel;
-    private JComboBox comboBox1;
-    private JComboBox comboBox2;
-    private JComboBox comboBox3;
-    private JComboBox comboBox4;
-    private JComboBox comboBox5;
+    private JComboBox businessSearchCriteriaComboBox;
+
+    private JPanel reviewPanel;
+    private JPanel reviewDateFromPanel;
     private JPanel reviewDateToPanel;
     private JDatePickerImpl reviewDatePickerFrom;
     private JDatePickerImpl reviewDatePickerTo;
+    private JPanel reviewStarsPanel;
+    private JLabel reviewStarsLabel;
+    private JComboBox reviewStarsComboBox;
+    private JLabel reviewStarsValueLabel;
+    private JTextField reviewStarsValue;
+    private JPanel reviewVotePanel;
+    private JLabel voteLabel;
+    private JLabel voteValueLabel;
+    private JComboBox reviewVoteComboBox;
+    private JComboBox reviewVoteOpComboBox;
+    private JTextField reviewVoteValue;
+    private JSeparator dateStarsSeparator;
+    private JSeparator starsVoteSeparator;
 
+    private JPanel middlePanel;
+    private JPanel usersPanel;
+    private JPanel usersSelectPanel;
+    private JLabel memberSinceLabel;
+    private JLabel reviewCountLabel;
+    private JLabel numOfFriendsLabel;
+    private JLabel avgStarsLabel;
+    private JLabel numOfVotesLabel;
+    private JPanel memberSinceDatePanel;
+    private JDatePickerImpl memberSinceDatePicker;
+    private JComboBox userReviewCountComboBox;
+    private JComboBox userNOFComboBox;
+    private JComboBox userAvgStarsComboBox;
+    private JComboBox userNOVComboBox;
+    private JPanel usersValuePanel;
+    private JTextField userReviewCountValue;
+    private JTextField userNOFValue;
+    private JTextField userAvgStarsValue;
+    private JTextField userNOVValue;
+    private JPanel userSearchCriteriaPanel;
+    private JLabel userANDORLabel;
+    private JComboBox userSearchCriteriaComboBox;
+    private JPanel fillerPanel;
+    private JLabel rcValLabel;
+    private JLabel nofValLabel;
+    private JLabel asValLabel;
+    private JLabel novValLabel;
+    private JPanel queryPanel;
+    private JTextArea queryTextArea;
 
-    private String SEARCH_CRITERIA = "OR";
+    private JPanel lastPanel;
+    private JPanel resultsPanel;
+    private JScrollPane resultsScrollPane;
+
+    private JPanel footer;
+    private JPanel buttons;
+    private JButton buSearchButton;
+    private JButton userSearchButton;
+    private JButton buttonClear;
+    private JButton buttonCancel;
+
+    private String BU_SEARCH_CRITERIA = "OR";
+    private String USER_SEARCH_CRITERIA = "OR";
 
     private List<String> checkedCategories = new ArrayList<String>();
     private List<String> checkedSubcategories = new ArrayList<String>();
@@ -81,22 +102,24 @@ public class HW3 extends JDialog {
 
     private Date reviewDateFrom = null;
     private Date reviewDateTo = null;
-    private String reviewStarsOp = "=";
-    private int reviewStars = 0;
-    private String reviewVoteType = "useful";
-    private String reviewVoteOp = "=";
-    private int reviewVote = 0;
 
+    private Date memberSinceDate = null;
 
     public HW3(Connection connection, List<String> categories) {
 
         setContentPane(contentPane);
         setModal(true);
-        getRootPane().setDefaultButton(buttonExecute);
+        getRootPane().setDefaultButton(buttonClear);
 
-        buttonExecute.addActionListener(new ActionListener() {
+        userSearchButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                onExecute(connection);
+                onUserSearch(connection);
+            }
+        });
+
+        buSearchButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                onBusinessSearch(connection);
             }
         });
 
@@ -109,116 +132,6 @@ public class HW3 extends JDialog {
         buttonCancel.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onCancel();
-            }
-        });
-
-        businessSearchCriteriaComboBox.addItem("OR");
-        businessSearchCriteriaComboBox.addItem("AND");
-        businessSearchCriteriaComboBox.addItemListener(new ItemListener() {
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-                JComboBox cb = (JComboBox) e.getSource();
-                SEARCH_CRITERIA = (String) cb.getSelectedItem();
-            }
-        });
-
-        reviewStarsComboBox.addItem("");
-        reviewStarsComboBox.addItem("=");
-        reviewStarsComboBox.addItem("<");
-        reviewStarsComboBox.addItem(">");
-        reviewStarsComboBox.addItem("<=");
-        reviewStarsComboBox.addItem(">=");
-        reviewStarsComboBox.addItem("<>");
-        reviewStarsComboBox.addItemListener(new ItemListener() {
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-                JComboBox cb = (JComboBox) e.getSource();
-                reviewStarsOp = (String) cb.getSelectedItem();
-            }
-        });
-
-        reviewVoteComboBox.addItem("");
-        reviewVoteComboBox.addItem("useful");
-        reviewVoteComboBox.addItem("funny");
-        reviewVoteComboBox.addItem("cool");
-        reviewVoteComboBox.addItemListener(new ItemListener() {
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-                JComboBox cb = (JComboBox) e.getSource();
-                reviewVoteType = (String) cb.getSelectedItem();
-            }
-        });
-
-        reviewVoteOpComboBox.addItem("");
-        reviewVoteOpComboBox.addItem("=");
-        reviewVoteOpComboBox.addItem("<");
-        reviewVoteOpComboBox.addItem(">");
-        reviewVoteOpComboBox.addItem("<=");
-        reviewVoteOpComboBox.addItem(">=");
-        reviewVoteOpComboBox.addItem("<>");
-        reviewVoteOpComboBox.addItemListener(new ItemListener() {
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-                JComboBox cb = (JComboBox) e.getSource();
-                reviewVoteOp = (String) cb.getSelectedItem();
-            }
-        });
-
-
-        UtilDateModel fromModel = new UtilDateModel();
-        UtilDateModel toModel = new UtilDateModel();
-
-        Properties p = new Properties();
-        p.put("text.today", "Today");
-        p.put("text.month", "Month");
-        p.put("text.year", "Year");
-
-        JDatePanelImpl datePanelFrom = new JDatePanelImpl(fromModel, p);
-        reviewDatePickerFrom = new JDatePickerImpl(datePanelFrom, new DateLabelFormatter());
-
-        JDatePanelImpl datePanelTo = new JDatePanelImpl(toModel, p);
-        reviewDatePickerTo = new JDatePickerImpl(datePanelTo, new DateLabelFormatter());
-
-        reviewDateFromPanel.setLayout(new FlowLayout());
-        reviewDateFromPanel.add(new JLabel("From"));
-        reviewDateFromPanel.add(reviewDatePickerFrom);
-
-        reviewDateToPanel.setLayout(new FlowLayout());
-        reviewDateToPanel.add(new JLabel("To"));
-        reviewDateToPanel.add(reviewDatePickerTo);
-
-        reviewDatePickerFrom.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
-                Date from = (Date) picker.getModel().getValue();
-                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
-                String newFormat = "dd-MMM-yy";
-                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
-                dateFormatter.applyPattern(newFormat);
-                String fromStr = dateFormatter.format(from);
-                try {
-                    reviewDateFrom = dateFormatter.parse(fromStr);
-                } catch (ParseException e1) {
-                    System.out.println("Exception while parsing review date from: " + e1.getMessage());
-                }
-            }
-        });
-        reviewDatePickerTo.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
-                Date to = (Date) picker.getModel().getValue();
-                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
-                String newFormat = "dd-MMM-yy";
-                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
-                dateFormatter.applyPattern(newFormat);
-                String toStr = dateFormatter.format(to);
-                try {
-                    reviewDateTo = dateFormatter.parse(toStr);
-                } catch (ParseException e1) {
-                    System.out.println("Exception while parsing review date to: " + e1.getMessage());
-                }
             }
         });
 
@@ -237,15 +150,171 @@ public class HW3 extends JDialog {
             }
         }, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
 
+        businessSearchCriteriaComboBox.addItem("OR");
+        businessSearchCriteriaComboBox.addItem("AND");
+        businessSearchCriteriaComboBox.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                JComboBox cb = (JComboBox) e.getSource();
+                BU_SEARCH_CRITERIA = (String) cb.getSelectedItem();
+            }
+        });
+
+        userSearchCriteriaComboBox.addItem("OR");
+        userSearchCriteriaComboBox.addItem("AND");
+        userSearchCriteriaComboBox.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                JComboBox cb = (JComboBox) e.getSource();
+                USER_SEARCH_CRITERIA = (String) cb.getSelectedItem();
+            }
+        });
+
+        reviewStarsComboBox.addItem("Select operator");
+        reviewStarsComboBox.addItem("=");
+        reviewStarsComboBox.addItem("<");
+        reviewStarsComboBox.addItem(">");
+        reviewStarsComboBox.addItem("<=");
+        reviewStarsComboBox.addItem(">=");
+        reviewStarsComboBox.addItem("<>");
+
+        reviewVoteComboBox.addItem("Select vote type");
+        reviewVoteComboBox.addItem("useful");
+        reviewVoteComboBox.addItem("funny");
+        reviewVoteComboBox.addItem("cool");
+
+        reviewVoteOpComboBox.addItem("Select operator");
+        reviewVoteOpComboBox.addItem("=");
+        reviewVoteOpComboBox.addItem("<");
+        reviewVoteOpComboBox.addItem(">");
+        reviewVoteOpComboBox.addItem("<=");
+        reviewVoteOpComboBox.addItem(">=");
+        reviewVoteOpComboBox.addItem("<>");
+
+        userReviewCountComboBox.addItem("Select operator");
+        userReviewCountComboBox.addItem("=");
+        userReviewCountComboBox.addItem("<");
+        userReviewCountComboBox.addItem(">");
+        userReviewCountComboBox.addItem("<=");
+        userReviewCountComboBox.addItem(">=");
+        userReviewCountComboBox.addItem("<>");
+
+        userNOFComboBox.addItem("Select operator");
+        userNOFComboBox.addItem("=");
+        userNOFComboBox.addItem("<");
+        userNOFComboBox.addItem(">");
+        userNOFComboBox.addItem("<=");
+        userNOFComboBox.addItem(">=");
+        userNOFComboBox.addItem("<>");
+
+        userAvgStarsComboBox.addItem("Select operator");
+        userAvgStarsComboBox.addItem("=");
+        userAvgStarsComboBox.addItem("<");
+        userAvgStarsComboBox.addItem(">");
+        userAvgStarsComboBox.addItem("<=");
+        userAvgStarsComboBox.addItem(">=");
+        userAvgStarsComboBox.addItem("<>");
+
+        userNOVComboBox.addItem("Select operator");
+        userNOVComboBox.addItem("=");
+        userNOVComboBox.addItem("<");
+        userNOVComboBox.addItem(">");
+        userNOVComboBox.addItem("<=");
+        userNOVComboBox.addItem(">=");
+        userNOVComboBox.addItem("<>");
+
+        UtilDateModel fromModel = new UtilDateModel();
+        UtilDateModel toModel = new UtilDateModel();
+        UtilDateModel memberSinceModel = new UtilDateModel();
+
+        Properties p = new Properties();
+        p.put("text.today", "Today");
+        p.put("text.month", "Month");
+        p.put("text.year", "Year");
+
+        JDatePanelImpl datePanelFrom = new JDatePanelImpl(fromModel, p);
+        reviewDatePickerFrom = new JDatePickerImpl(datePanelFrom, new DateLabelFormatter());
+
+        JDatePanelImpl datePanelTo = new JDatePanelImpl(toModel, p);
+        reviewDatePickerTo = new JDatePickerImpl(datePanelTo, new DateLabelFormatter());
+
+        JDatePanelImpl datePanelMemberSince = new JDatePanelImpl(memberSinceModel, p);
+        memberSinceDatePicker = new JDatePickerImpl(datePanelMemberSince, new DateLabelFormatter());
+
+        reviewDateFromPanel.setLayout(new FlowLayout());
+        reviewDateFromPanel.add(new JLabel("From"));
+        reviewDateFromPanel.add(reviewDatePickerFrom);
+
+        reviewDateToPanel.setLayout(new FlowLayout());
+        reviewDateToPanel.add(new JLabel("To"));
+        reviewDateToPanel.add(reviewDatePickerTo);
+
+        memberSinceDatePanel.setLayout(new FlowLayout());
+        memberSinceDatePanel.add(memberSinceDatePicker);
+
+        reviewDatePickerFrom.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
+                Date from = (Date) picker.getModel().getValue();
+                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
+                String newFormat = "dd-MMM-yy";
+                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
+                dateFormatter.applyPattern(newFormat);
+                String fromStr = dateFormatter.format(from);
+                try {
+                    reviewDateFrom = dateFormatter.parse(fromStr);
+                } catch (ParseException e1) {
+                    System.out.println("Exception while parsing review date from: " + e1.getMessage());
+                }
+            }
+        });
+
+        reviewDatePickerTo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
+                Date to = (Date) picker.getModel().getValue();
+                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
+                String newFormat = "dd-MMM-yy";
+                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
+                dateFormatter.applyPattern(newFormat);
+                String toStr = dateFormatter.format(to);
+                try {
+                    reviewDateTo = dateFormatter.parse(toStr);
+                } catch (ParseException e1) {
+                    System.out.println("Exception while parsing review date to: " + e1.getMessage());
+                }
+            }
+        });
+
+        memberSinceDatePicker.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JDatePanelImpl picker = (JDatePanelImpl) e.getSource();
+                Date date = (Date) picker.getModel().getValue();
+                String oldFormat = "E MMM dd HH:mm:ss z yyyy";
+                String newFormat = "dd-MMM-yy";
+                SimpleDateFormat dateFormatter = new SimpleDateFormat(oldFormat);
+                dateFormatter.applyPattern(newFormat);
+                String toStr = dateFormatter.format(date);
+                try {
+                    memberSinceDate = dateFormatter.parse(toStr);
+                } catch (ParseException e1) {
+                    System.out.println("Exception while parsing member since date: " + e1.getMessage());
+                }
+            }
+        });
+
         // Set preferred sizes
         categoryPane.setPreferredSize(new Dimension(250, 200));
         subcategoryPane.setPreferredSize(new Dimension(250, 200));
         attributesPane.setPreferredSize(new Dimension(250, 200));
         reviewPanel.setPreferredSize(new Dimension(250, 500));
-
         resultsPanel.setPreferredSize(new Dimension(750, 250));
 
         // Add to UI
+        // TODO AND Search for business
         JList categoryList = new JList();
         categoryList.setLayout(new BoxLayout(categoryList, BoxLayout.PAGE_AXIS));
         categoryList.setPreferredSize(new Dimension(200, categories.size() * 23));
@@ -345,21 +414,28 @@ public class HW3 extends JDialog {
 
     }
 
-    private void onExecute(Connection conn) {
+    private void onBusinessSearch(Connection conn) {
 
-        // category search only
-        if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
-            categorySearch(conn);
-        }
-        // category and subcategory search
-        else if (checkedAttributes.isEmpty()) {
-            categoryAndSubcategorySearch(conn);
-        }
-        // category and subcategory and attribute search
-        else {
-            categoryAndSubcategoryAndAttributeSearch(conn);
+        if (checkedCategories.size() == 0) {
+            JOptionPane.showMessageDialog(null, "Category selection is required!");
+        } else {
+            // category search only
+            if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
+                categorySearch(conn);
+            }
+            // category and subcategory search
+            else if (checkedAttributes.isEmpty()) {
+                categoryAndSubcategorySearch(conn);
+            }
+            // category and subcategory and attribute search
+            else {
+                categoryAndSubcategoryAndAttributeSearch(conn);
+            }
         }
 
+    }
+
+    private void onUserSearch(Connection conn) {
 
     }
 
@@ -383,7 +459,6 @@ public class HW3 extends JDialog {
             System.out.println("Terminated program.");
             System.exit(-1);
         }
-
 
         Connection connection = null;
         try {
@@ -518,45 +593,13 @@ public class HW3 extends JDialog {
 
     }
 
-    private static DefaultTableModel buildTableModel(ResultSet rs) {
-
-        try {
-
-            ResultSetMetaData metaData = rs.getMetaData();
-
-            // names of columns
-            Vector<String> columnNames = new Vector<String>();
-            int columnCount = metaData.getColumnCount();
-            for (int column = 1; column <= columnCount; column++) {
-                columnNames.add(metaData.getColumnName(column));
-            }
-
-            // data of the table
-            Vector<Vector<Object>> data = new Vector<Vector<Object>>();
-            while (rs.next()) {
-                Vector<Object> vector = new Vector<Object>();
-                for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
-                    vector.add(rs.getObject(columnIndex));
-                }
-                data.add(vector);
-            }
-
-            return new DefaultTableModel(data, columnNames);
-
-        } catch (SQLException e) {
-            System.out.println("Exception while building data model for results table: " + e.getMessage());
-        }
-
-        return null;
-    }
-
     private void categorySearch(Connection conn) {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
-            categoryClause += "CATEGORY = ? " + SEARCH_CRITERIA + " ";
+            categoryClause += "CATEGORY = ? " + BU_SEARCH_CRITERIA + " ";
         }
-        categoryClause = categoryClause.substring(0, categoryClause.length() - (SEARCH_CRITERIA.length() + 2));
+        categoryClause = categoryClause.substring(0, categoryClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
 
         String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
 
@@ -568,15 +611,15 @@ public class HW3 extends JDialog {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
-            categoryClause += "A.CATEGORY = ? " + SEARCH_CRITERIA + " ";
+            categoryClause += "A.CATEGORY = ? " + BU_SEARCH_CRITERIA + " ";
         }
-        categoryClause = categoryClause.substring(0, categoryClause.length() - (SEARCH_CRITERIA.length() + 2));
+        categoryClause = categoryClause.substring(0, categoryClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
 
         String subcategoryClause = "";
         for (int i = 0; i < checkedSubcategories.size(); i++) {
-            subcategoryClause += "B.SUBCATEGORY = ? " + SEARCH_CRITERIA + " ";
+            subcategoryClause += "B.SUBCATEGORY = ? " + BU_SEARCH_CRITERIA + " ";
         }
-        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - (SEARCH_CRITERIA.length() + 2));
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
 
         String sql = "SELECT A.BU_ID FROM BU_CATEGORY A, BU_SUBCATEGORY B WHERE " +
                 "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (A.BU_ID = B.BU_ID))";
@@ -593,26 +636,26 @@ public class HW3 extends JDialog {
 
         String categoryClause = "";
         for (int i = 0; i < checkedCategories.size(); i++) {
-            categoryClause += "A.CATEGORY = ? " + SEARCH_CRITERIA + " ";
+            categoryClause += "A.CATEGORY = ? " + BU_SEARCH_CRITERIA + " ";
         }
-        categoryClause = categoryClause.substring(0, categoryClause.length() - (SEARCH_CRITERIA.length() + 2));
+        categoryClause = categoryClause.substring(0, categoryClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
 
         String subcategoryClause = "";
         for (int i = 0; i < checkedSubcategories.size(); i++) {
-            subcategoryClause += "B.SUBCATEGORY = ? " + SEARCH_CRITERIA + " ";
+            subcategoryClause += "B.SUBCATEGORY = ? " + BU_SEARCH_CRITERIA + " ";
         }
-        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - (SEARCH_CRITERIA.length() + 2));
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
 
         String attributeClause = "";
         List<String> attrItems = new ArrayList<String>();
         for (String checkedAttribute : checkedAttributes) {
-            attributeClause += "(C.ATTR_NAME = ? AND C.ATTR_VALUE = ?) " + SEARCH_CRITERIA + " ";
+            attributeClause += "(C.ATTR_NAME = ? AND C.ATTR_VALUE = ?) " + BU_SEARCH_CRITERIA + " ";
             String k = checkedAttribute.split(" = ")[0];
             String v = checkedAttribute.split(" = ")[1];
             attrItems.add(k);
             attrItems.add(v);
         }
-        attributeClause = attributeClause.substring(0, attributeClause.length() - (SEARCH_CRITERIA.length() + 2));
+        attributeClause = attributeClause.substring(0, attributeClause.length() - (BU_SEARCH_CRITERIA.length() + 2));
 
         String sql = "SELECT C.BU_ID FROM BU_CATEGORY A, BU_SUBCATEGORY B, BU_ATTRIBUTE C WHERE " +
                 "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (" + attributeClause + ") " +
@@ -629,7 +672,8 @@ public class HW3 extends JDialog {
 
     private void businessSearchOR(Connection conn, List<String> items, String inClause) {
 
-        System.out.print("Searching... ");
+        System.out.println("------------------------------------------------------------");
+        System.out.println("Searching... ");
         try {
             // Get name, city, state, and stars of each bu_id
             String sql = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") " +
@@ -695,8 +739,8 @@ public class HW3 extends JDialog {
             boolean filterByStars = false;
             String starsOp = (String) reviewStarsComboBox.getSelectedItem();
             String stars = (String) reviewStarsValue.getText();
-            if (!starsOp.equals("") && !stars.equals("")) {
-                sql2 += " AND (R.STARS " + starsOp + "?)";
+            if (!starsOp.equals("Select operator") && !stars.equals("")) {
+                sql2 += " AND (R.STARS " + starsOp + " ?)";
                 filterByStars = true;
             }
 
@@ -704,7 +748,7 @@ public class HW3 extends JDialog {
             String voteOp = (String) reviewVoteOpComboBox.getSelectedItem();
             String voteType = (String) reviewVoteComboBox.getSelectedItem();
             String voteValue = (String) reviewVoteValue.getText();
-            if (!voteType.equals("") && !voteOp.equals("") && !voteValue.equals("")) {
+            if (!voteType.equals("Select vote type") && !voteOp.equals("Select operator") && !voteValue.equals("")) {
                 sql2 += " AND (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
                 filterByVotes = true;
             }
@@ -740,7 +784,7 @@ public class HW3 extends JDialog {
         } catch (SQLException e) {
             System.out.println("Exception while querying for reviews: " + e.getMessage());
         }
-        System.out.print("Done.\n");
+        System.out.println("Done.");
 
     }
 
@@ -764,5 +808,50 @@ public class HW3 extends JDialog {
             return "";
         }
 
+    }
+
+    private static DefaultTableModel buildTableModel(ResultSet rs) {
+
+        try {
+
+            ResultSetMetaData metaData = rs.getMetaData();
+
+            // names of columns
+            Vector<String> columnNames = new Vector<String>();
+            int columnCount = metaData.getColumnCount();
+            for (int column = 1; column <= columnCount; column++) {
+                columnNames.add(metaData.getColumnName(column));
+            }
+
+            // data of the table
+            Vector<Vector<Object>> data = new Vector<Vector<Object>>();
+            while (rs.next()) {
+                Vector<Object> vector = new Vector<Object>();
+                for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
+                    if (rs.getObject(columnIndex) instanceof Clob) {
+                        String str = rs.getString(columnIndex);
+                        if (str.length() > 100) {
+                            str = str.substring(0, 100) + "...";
+                        }
+                        vector.add(str);
+                    } else if (rs.getObject(columnIndex) instanceof Date) {
+                        String date = rs.getDate(columnIndex).toString();
+                        date = date.substring(0, 10);
+                        vector.add(date);
+                    } else {
+                        vector.add(rs.getObject(columnIndex));
+                    }
+
+                }
+                data.add(vector);
+            }
+
+            return new DefaultTableModel(data, columnNames);
+
+        } catch (SQLException e) {
+            System.out.println("Exception while building data model for results table: " + e.getMessage());
+        }
+
+        return null;
     }
 }
