@@ -271,12 +271,44 @@ public class BusinessParser {
 			String v = "";
 			if (value instanceof String) {
 				v = (String) value;
-			}
-			if (value instanceof Boolean) {
+			} else if (value instanceof Boolean) {
 				if (attributes.getBoolean(key)) {
 					v = "true";
 				} else {
 					v = "false";
+				}
+			} else if (value instanceof Integer) {
+				v = String.valueOf(value);
+			} else {
+				JSONObject innerAttr = json.getJSONObject("attributes").getJSONObject(key);
+				Iterator<String> innerIt = innerAttr.keys();
+				while (innerIt.hasNext()) {
+					String innerKey = innerIt.next();
+					String insertKey = key + ": " + innerKey;
+					value = innerAttr.get(innerKey);
+					v = "";
+					if (value instanceof String) {
+						v = (String) value;
+					} else if (value instanceof Boolean) {
+						if (innerAttr.getBoolean(innerKey)) {
+							v = "true";
+						} else {
+							v = "false";
+						}
+					} else if (value instanceof Integer) {
+						v = String.valueOf(value);
+					}
+					try {
+						stmt.clearParameters();
+						stmt.setInt(1, nextId);
+						stmt.setString(2, buId);
+						stmt.setString(3, insertKey);
+						stmt.setString(4, v);
+						stmt.addBatch();
+					} catch (SQLException e) {
+						System.out.println("Exception while creating PreparedStatement for INSERT INTO bu_attribute: " + e.getMessage());
+					}
+					nextId += 1;
 				}
 			}
 			try {

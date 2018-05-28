@@ -47,6 +47,7 @@ public class HW3 extends JDialog {
     private JComboBox businessANDORSelect;
     private JButton buttonClear;
 
+    private String SEARCH_CRITERIA = "OR";
     private List<String> checkedCategories = new ArrayList<String>();
     private List<String> checkedSubcategories = new ArrayList<String>();
     private List<String> checkedAttributes = new ArrayList<String>();
@@ -102,7 +103,7 @@ public class HW3 extends JDialog {
         // Add to UI
         JList categoryList = new JList();
         categoryList.setLayout(new BoxLayout(categoryList, BoxLayout.PAGE_AXIS));
-        categoryList.setPreferredSize(new Dimension(200, 650));
+        categoryList.setPreferredSize(new Dimension(200, categories.size() * 23));
 
         for (String category : categories) {
             JCheckBox checkBox = new JCheckBox(category);
@@ -115,15 +116,17 @@ public class HW3 extends JDialog {
                         checkedCategories.add(categoryName);
                     } else {
                         checkedCategories.remove(categoryName);
+                        // TODO Clear checked subcategories
                     }
-                    System.out.println("Checked categories: "  + Arrays.asList(checkedCategories).toString());
+                    System.out.println("Checked categories: " + Arrays.asList(checkedCategories).toString());
 
                     // Add to UI
                     JList subcategoryList = new JList();
                     subcategoryList.setLayout(new BoxLayout(subcategoryList, BoxLayout.PAGE_AXIS));
-                    subcategoryList.setPreferredSize(new Dimension(200, 650));
 
                     List<String> subcategories = querySubcategoriesOR(connection, checkedCategories);
+                    subcategoryList.setPreferredSize(new Dimension(200, subcategories.size() * 23));
+
                     for (String subcategory : subcategories) {
                         JCheckBox checkBox = new JCheckBox(subcategory);
                         checkBox.addItemListener(new ItemListener() {
@@ -135,17 +138,32 @@ public class HW3 extends JDialog {
                                     checkedSubcategories.add(subcategoryName);
                                 } else {
                                     checkedSubcategories.remove(subcategoryName);
+                                    // TODO Clear checked attributes
                                 }
                                 System.out.println("Checked subcategories: " + Arrays.asList(checkedSubcategories).toString());
 
                                 // Add to UI
                                 JList attributesList = new JList();
                                 attributesList.setLayout(new BoxLayout(attributesList, BoxLayout.PAGE_AXIS));
-                                attributesList.setPreferredSize(new Dimension(200, 650));
 
-                                List<String> attributes = queryAttributesOR(connection, checkedSubcategories);
+                                List<String> attributes = queryAttributesOR(connection, checkedCategories, checkedSubcategories);
+                                attributesList.setPreferredSize(new Dimension(200, attributes.size() * 23));
+
                                 for (String attr : attributes) {
                                     JCheckBox checkBox = new JCheckBox(attr);
+                                    checkBox.addItemListener(new ItemListener() {
+                                        @Override
+                                        public void itemStateChanged(ItemEvent e) {
+                                            JCheckBox check = (JCheckBox) e.getSource();
+                                            String attribute = check.getText();
+                                            if (e.getStateChange() == 1) {
+                                                checkedAttributes.add(attribute);
+                                            } else {
+                                                checkedAttributes.remove(attribute);
+                                            }
+                                            System.out.println("Checked attributes: " + Arrays.asList(checkedAttributes).toString());
+                                        }
+                                    });
                                     attributesList.add(checkBox);
                                     attributesList.repaint();
                                 }
@@ -181,124 +199,18 @@ public class HW3 extends JDialog {
 
     private void onExecute(Connection conn) {
 
-        // category search only
-        if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
-            if (!checkedCategories.isEmpty()) {
-                String categoryClause = "";
-                for (String checkedCategory : checkedCategories) {
-                    categoryClause += "CATEGORY = ? OR ";
-                }
-                categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
-
-                String sql1 = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
-                try {
-                    PreparedStatement ps1 = conn.prepareStatement(sql1);
-                    for (int i = 1; i <= checkedCategories.size(); i++) {
-                        ps1.setString(i, checkedCategories.get(i - 1));
-                    }
-                    ResultSet rs1 = ps1.executeQuery();
-
-                    List<String> buIds = new ArrayList<String>();
-                    String buIdClause = "";
-                    while (rs1.next()) {
-                        buIdClause += "BU_ID = ? OR ";
-                        buIds.add(rs1.getString("BU_ID"));
-                    }
-                    buIdClause = buIdClause.substring(0, buIdClause.length() - 4); // remove the last ' OR '
-                    rs1.close();
-
-                    String sql2 = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE (" + buIdClause + ")";
-                    PreparedStatement ps2 = conn.prepareStatement(sql2);
-                    for (int i = 1; i <= buIds.size(); i++) {
-                        ps2.setString(i, buIds.get(i - 1));
-                    }
-                    ResultSet rs2 = ps2.executeQuery();
-                    DefaultTableModel model = buildTableModel(rs2);
-                    rs2.close();
-
-                    if (model != null) {
-                        JTable resultsTable = new JTable(model);
-                        resultsScrollPane.add(resultsTable);
-                        resultsScrollPane.setViewportView(resultsTable);
-                        resultsScrollPane.repaint();
-                    }
-
-                } catch (SQLException e) {
-                    System.out.println("Exception while querying for businesses: " + e.getMessage());
-                }
-
+        if (SEARCH_CRITERIA.equals("OR")) {
+            // category search only
+            if (checkedSubcategories.isEmpty() && checkedAttributes.isEmpty()) {
+                categorySearchOR(conn);
             }
-        }
-
-        if (checkedAttributes.isEmpty()) {
-            if (!checkedCategories.isEmpty() && !checkedSubcategories.isEmpty()) {
-                String categoryClause = "";
-                for (String checkedCategory : checkedCategories) {
-                    categoryClause += "CATEGORY = ? OR ";
-                }
-                categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
-
-                String sql1 = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
-                try {
-                    PreparedStatement ps1 = conn.prepareStatement(sql1);
-                    for (int i = 1; i <= checkedCategories.size(); i++) {
-                        ps1.setString(i, checkedCategories.get(i - 1));
-                    }
-                    ResultSet rs1 = ps1.executeQuery();
-
-                    Set<String> buIds = new HashSet<String>();
-                    String buIdClause1 = "";
-                    while (rs1.next()) {
-                        buIdClause1 += "BU_ID = ? OR ";
-                        buIds.add(rs1.getString("BU_ID"));
-                    }
-                    buIdClause1 = buIdClause1.substring(0, buIdClause1.length() - 4); // remove the last ' OR '
-                    rs1.close();
-
-                    String sql2 = "SELECT BU_ID FROM BU_SUBCATEGORY WHERE (" + categoryClause + ")";
-                    PreparedStatement ps2 = conn.prepareStatement(sql1);
-                    for (int i = 1; i <= checkedSubcategories.size(); i++) {
-                        ps2.setString(i, checkedSubcategories.get(i - 1));
-                    }
-                    ResultSet rs2 = ps1.executeQuery();
-
-                    String buIdClause2 = "";
-                    while (rs2.next()) {
-                        buIdClause2 += "BU_ID = ? OR ";
-                        buIds.add(rs2.getString("BU_ID"));
-                    }
-                    buIdClause2 = buIdClause2.substring(0, buIdClause2.length() - 4); // remove the last ' OR '
-                    rs2.close();
-
-                    String buIdClause3 = "";
-                    for (String buId : buIds) {
-                        buIdClause3 += "BU_ID = ? OR ";
-                    }
-                    buIdClause3 = buIdClause3.substring(0, buIdClause3.length() - 4); // remove the last ' OR '
-                    String sql3 = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE (" + buIdClause3 + ")";
-                    PreparedStatement ps3 = conn.prepareStatement(sql3);
-                    Iterator<String> it = buIds.iterator();
-                    int i = 1;
-                    while (it.hasNext()) {
-                        ps3.setString(i, it.next());
-                        i++;
-                    }
-                    ResultSet rs3 = ps3.executeQuery();
-                    DefaultTableModel model = buildTableModel(rs3);
-                    rs3.close();
-
-                    if (model != null) {
-                        JTable resultsTable = new JTable(model);
-                        resultsScrollPane.add(resultsTable);
-                        resultsScrollPane.setViewportView(resultsTable);
-                        resultsScrollPane.repaint();
-                    }
-
-
-                } catch (SQLException e) {
-                    System.out.println("Exception while querying for businesses: " + e.getMessage());
-                }
-
+            // category and subcategory search
+            else if (checkedAttributes.isEmpty()) {
+                categoryAndSubcategorySearchOR(conn);
+            }
+            // category and subcategory and attribute search
+            else {
+                categoryAndSubcategoryAndAttributeSearchOR(conn);
             }
         }
 
@@ -308,9 +220,7 @@ public class HW3 extends JDialog {
         checkedCategories.clear();
         checkedSubcategories.clear();
         checkedAttributes.clear();
-        attributesPane.repaint();
-        subcategoryPane.repaint();
-        categoryPane.repaint();
+        // TODO Reset the UI to initial state
     }
 
     private void onCancel() {
@@ -377,59 +287,6 @@ public class HW3 extends JDialog {
 
     }
 
-    private static List<String> queryAllBusinessesUnderCategory(Connection conn, String category) {
-
-        List<String> businesses = new ArrayList<String>();
-
-        String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE CATEGORY = '" + category + "'";
-        try {
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql);
-            while (rs.next()) {
-                businesses.add(rs.getString("BU_ID"));
-            }
-            rs.close();
-        } catch (SQLException e) {
-            System.out.println("Exception while querying for businesses: " + e.getMessage());
-        }
-
-        return businesses;
-
-    }
-
-//    private static List<String> querySubcategoriesOfCheckedCategoriesAND(Connection conn, List<String> checkedCategories) {
-//
-//        List<String> subcategories = new ArrayList<String>();
-//
-//        if (checkedCategories.size() > 0) {
-//
-//            String whereClause = "";
-//            for (String checkedCategory : checkedCategories) {
-//                whereClause += "CATEGORY = ? AND ";
-//            }
-//            whereClause = whereClause.substring(0, whereClause.length() - 5); // remove the last ' AND '
-//
-//            String sql = "SELECT SUBCATEGORY FROM CAT_TO_SUBCAT WHERE (" + whereClause + ")";
-//            System.out.println(sql);
-//            try {
-//                PreparedStatement stmt = conn.prepareStatement(sql);
-//                for (int i = 1; i <= checkedCategories.size(); i++) {
-//                    stmt.setString(i, checkedCategories.get(i - 1));
-//                }
-//                ResultSet rs = stmt.executeQuery();
-//                while (rs.next()) {
-//                    subcategories.add(rs.getString("SUBCATEGORY"));
-//                }
-//                rs.close();
-//            } catch (SQLException e) {
-//                System.out.println("Exception while querying for subcategories: " + e.getMessage());
-//            }
-//
-//        }
-//        return subcategories;
-//
-//    }
-
     private static List<String> querySubcategoriesOR(Connection conn, List<String> checkedCategories) {
 
         List<String> subcategories = new ArrayList<String>();
@@ -438,108 +295,74 @@ public class HW3 extends JDialog {
 
             String categoryClause = "";
             for (String checkedCategory : checkedCategories) {
-                categoryClause += "CATEGORY = ? OR ";
+                categoryClause += "A.CATEGORY = ? OR ";
             }
             categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
 
-            String sql1 = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
+            String sql = "SELECT DISTINCT B.SUBCATEGORY FROM BU_CATEGORY A, BU_SUBCATEGORY B WHERE " +
+                    "((" + categoryClause + ") AND (A.BU_ID = B.BU_ID)) ORDER BY B.SUBCATEGORY";
             try {
-                PreparedStatement ps1 = conn.prepareStatement(sql1);
+                PreparedStatement ps = conn.prepareStatement(sql);
                 for (int i = 1; i <= checkedCategories.size(); i++) {
-                    ps1.setString(i, checkedCategories.get(i - 1));
+                    ps.setString(i, checkedCategories.get(i - 1));
                 }
-                ResultSet rs1 = ps1.executeQuery();
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    subcategories.add(rs.getString("SUBCATEGORY"));
+                }
+                rs.close();
 
-                List<String> buIds = new ArrayList<String>();
-                String buIdClause = "";
-                while (rs1.next()) {
-                    buIdClause += "BU_ID = ? OR ";
-                    buIds.add(rs1.getString("BU_ID"));
-                }
-                buIdClause = buIdClause.substring(0, buIdClause.length() - 4); // remove the last ' OR '
-                rs1.close();
-
-                String sql2 = "SELECT DISTINCT SUBCATEGORY FROM BU_SUBCATEGORY WHERE (" + buIdClause + ")";
-                PreparedStatement ps2 = conn.prepareStatement(sql2);
-                for (int i = 1; i <= buIds.size(); i++) {
-                    ps2.setString(i, buIds.get(i - 1));
-                }
-                ResultSet rs2 = ps2.executeQuery();
-                while (rs2.next()) {
-                    subcategories.add(rs2.getString("SUBCATEGORY"));
-                }
-                rs2.close();
             } catch (SQLException e) {
                 System.out.println("Exception while querying for subcategories: " + e.getMessage());
             }
 
         }
+
         return subcategories;
 
     }
 
-    private static List<String> queryBuIdOR(Connection conn, List<String> checkedSubcategories) {
+    private static List<String> queryAttributesOR(Connection conn, List<String> checkedCategories, List<String> checkedSubcategories) {
 
-        List<String> buIds = new ArrayList<String>();
+        List<String> attributes = new ArrayList<String>();
 
         if (!checkedSubcategories.isEmpty()) {
 
             String categoryClause = "";
-            for (String checkedCategory : checkedSubcategories) {
-                categoryClause += "SUBCATEGORY = ? OR ";
+            for (int i = 0; i < checkedCategories.size(); i++) {
+                categoryClause += "A.CATEGORY = ? OR ";
             }
             categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
 
-            String sql1 = "SELECT BU_ID FROM BU_SUBCATEGORY WHERE (" + categoryClause + ")";
+            String subcategoryClause = "";
+            for (int i = 0; i < checkedSubcategories.size(); i++) {
+                subcategoryClause += "B.SUBCATEGORY = ? OR ";
+            }
+            subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
+
+            String sql = "SELECT DISTINCT C.ATTR_NAME, C.ATTR_VALUE FROM BU_CATEGORY A, BU_SUBCATEGORY B, BU_ATTRIBUTE C WHERE " +
+                    "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (B.BU_ID = C.BU_ID))";
             try {
-                PreparedStatement ps1 = conn.prepareStatement(sql1);
+                PreparedStatement ps = conn.prepareStatement(sql);
+                int id = 0;
+                for (int i = 1; i <= checkedCategories.size(); i++) {
+                    ps.setString((id += 1), checkedCategories.get(i - 1));
+                }
                 for (int i = 1; i <= checkedSubcategories.size(); i++) {
-                    ps1.setString(i, checkedSubcategories.get(i - 1));
+                    ps.setString((id += 1), checkedSubcategories.get(i - 1));
                 }
-                ResultSet rs1 = ps1.executeQuery();
-                while (rs1.next()) {
-                    buIds.add(rs1.getString("BU_ID"));
-                }
-                rs1.close();
-            } catch (SQLException e) {
-                System.out.println("Exception while querying for subcategories: " + e.getMessage());
-            }
-
-        }
-        return buIds;
-
-    }
-
-    private static List<String> queryAttributesOR(Connection conn, List<String> checkedSubcategories) {
-
-        List<String> attributes = new ArrayList<String>();
-
-        List<String> buIds = queryBuIdOR(conn, checkedSubcategories);
-        if (!buIds.isEmpty()) {
-
-            String buIdClause = "";
-            for (String buId : buIds) {
-                buIdClause += "BU_ID = ? OR ";
-            }
-            buIdClause = buIdClause.substring(0, buIdClause.length() - 4); // remove the last ' OR '
-
-            String sql1 = "SELECT DISTINCT ATTR_NAME, ATTR_VALUE FROM BU_ATTRIBUTE WHERE ((" + buIdClause + ") AND ATTR_VALUE IS NOT NULL)";
-            try {
-                PreparedStatement ps1 = conn.prepareStatement(sql1);
-                for (int i = 1; i <= buIds.size(); i++) {
-                    ps1.setString(i, buIds.get(i - 1));
-                }
-                ResultSet rs1 = ps1.executeQuery();
-                while (rs1.next()) {
-                    String attr = rs1.getString("ATTR_NAME") + " = " + rs1.getString("ATTR_VALUE");
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    String attr = rs.getString("ATTR_NAME") + " = " + rs.getString("ATTR_VALUE");
                     attributes.add(attr);
                 }
-                rs1.close();
+                rs.close();
             } catch (SQLException e) {
-                System.out.println("Exception while querying for subcategories: " + e.getMessage());
+                System.out.println("Exception while querying for attributes: " + e.getMessage());
             }
 
         }
+
         return attributes;
 
     }
@@ -569,11 +392,115 @@ public class HW3 extends JDialog {
 
             return new DefaultTableModel(data, columnNames);
 
-        } catch(SQLException e) {
+        } catch (SQLException e) {
             System.out.println("Exception while building data model for results table: " + e.getMessage());
         }
 
         return null;
     }
 
+    private void categorySearchOR(Connection conn) {
+
+        String categoryClause = "";
+        for (int i = 0; i < checkedCategories.size(); i++) {
+            categoryClause += "CATEGORY = ? OR ";
+        }
+        categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+
+        String sql = "SELECT BU_ID FROM BU_CATEGORY WHERE (" + categoryClause + ")";
+
+        businessSearchOR(conn, checkedCategories, sql);
+
+    }
+
+    private void categoryAndSubcategorySearchOR(Connection conn) {
+
+        String categoryClause = "";
+        for (int i = 0; i < checkedCategories.size(); i++) {
+            categoryClause += "A.CATEGORY = ? OR ";
+        }
+        categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+
+        String subcategoryClause = "";
+        for (int i = 0; i < checkedSubcategories.size(); i++) {
+            subcategoryClause += "B.SUBCATEGORY = ? OR ";
+        }
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
+
+        String sql = "SELECT A.BU_ID FROM BU_CATEGORY A, BU_SUBCATEGORY B WHERE " +
+                "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (A.BU_ID = B.BU_ID))";
+
+        List<String> items = new ArrayList<String>();
+        items.addAll(checkedCategories);
+        items.addAll(checkedSubcategories);
+
+        businessSearchOR(conn, items, sql);
+
+    }
+
+    private void categoryAndSubcategoryAndAttributeSearchOR(Connection conn) {
+
+        String categoryClause = "";
+        for (int i = 0; i < checkedCategories.size(); i++) {
+            categoryClause += "A.CATEGORY = ? OR ";
+        }
+        categoryClause = categoryClause.substring(0, categoryClause.length() - 4); // remove the last ' OR '
+
+        String subcategoryClause = "";
+        for (int i = 0; i < checkedSubcategories.size(); i++) {
+            subcategoryClause += "B.SUBCATEGORY = ? OR ";
+        }
+        subcategoryClause = subcategoryClause.substring(0, subcategoryClause.length() - 4); // remove the last ' OR '
+
+        String attributeClause = "";
+        List<String> attrItems = new ArrayList<String>();
+        for (String checkedAttribute : checkedAttributes) {
+            attributeClause += "(C.ATTR_NAME = ? AND C.ATTR_VALUE = ?) OR ";
+            String k = checkedAttribute.split(" = ")[0];
+            String v = checkedAttribute.split(" = ")[1];
+            attrItems.add(k);
+            attrItems.add(v);
+        }
+        attributeClause = attributeClause.substring(0, attributeClause.length() - 4); // remove the last ' OR '
+
+        String sql = "SELECT C.BU_ID FROM BU_CATEGORY A, BU_SUBCATEGORY B, BU_ATTRIBUTE C WHERE " +
+                "((" + categoryClause + ") AND (" + subcategoryClause + ") AND (" + attributeClause + ") AND (A.BU_ID = B.BU_ID) AND (B.BU_ID = C.BU_ID))";
+
+        List<String> items = new ArrayList<String>();
+        items.addAll(checkedCategories);
+        items.addAll(checkedSubcategories);
+        items.addAll(attrItems);
+
+        businessSearchOR(conn, items, sql);
+
+    }
+
+    private void businessSearchOR(Connection conn, List<String> items, String inClause) {
+
+        System.out.print("Searching... ");
+        try {
+            // Get name, city, state, and stars of each bu_id
+            String sql = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") ORDER BY STARS DESC";
+            System.out.println(sql);
+            System.out.println(Arrays.asList(items).toString());
+            PreparedStatement ps = conn.prepareStatement(sql);
+            for (int i = 1; i <= items.size(); i++) {
+                ps.setString(i, items.get(i - 1));
+            }
+            ResultSet rs = ps.executeQuery();
+            DefaultTableModel model = buildTableModel(rs);
+            rs.close();
+
+            if (model != null) {
+                JTable resultsTable = new JTable(model);
+                resultsScrollPane.add(resultsTable);
+                resultsScrollPane.setViewportView(resultsTable);
+                resultsScrollPane.repaint();
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Exception while querying for businesses: " + e.getMessage());
+        }
+        System.out.print("Done.\n");
+    }
 }
