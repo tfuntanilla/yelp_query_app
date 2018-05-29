@@ -22,7 +22,7 @@ public class ReviewParser {
 
 			int totalRows = 0; int lineNum = 0;
 
-			String line = null;
+			String line;
 			while ((line = reader.readLine()) != null) {
 				prepareInsertIntoReview(insertIntoReview, line);
 				lineNum += 1;

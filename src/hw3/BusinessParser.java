@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Iterator;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -16,7 +16,7 @@ public class BusinessParser {
 
 		try {
 			
-			String sql1 = "INSERT INTO business VALUES(?,?,?,?,?,?,?,?,?,?,?)";
+			String sql1 = "INSERT INTO business VALUES(?,?,?,?,?,?,?,?)";
 			String sql2 = "INSERT INTO bu_category VALUES(?,?,?)";
 			String sql3 = "INSERT INTO bu_subcategory VALUES(?,?,?)";
 			String sql4 = "INSERT INTO bu_attribute VALUES(?,?,?,?)";
@@ -30,7 +30,7 @@ public class BusinessParser {
 			int subCategoryId = 1;
 			int attrId = 1;
 
-			String line = null;
+			String line;
 			while ((line = reader.readLine()) != null) {
 				prepareInsertIntoBusiness(insertIntoBusiness, line);
 				categoryId = prepareInsertIntoBuCategory(insertIntoBuCategory, line, categoryId);
@@ -79,14 +79,11 @@ public class BusinessParser {
 		JSONObject json = new JSONObject(line);
 
 		String id = json.getString("business_id");
-		String fullAddress = json.getString("full_address");
 		boolean openBool = json.getBoolean("open");
 		String open = (openBool ? "T" : "F");
 
 		String city = json.getString("city");
 		String state = json.getString("state");
-		float latitude = json.getFloat("latitude");
-		float longitude = json.getFloat("longitude");
 		int reviewCount = json.getInt("review_count");
 		String name = json.getString("name");
 		double stars = json.getDouble("stars");
@@ -97,15 +94,12 @@ public class BusinessParser {
 			stmt.clearParameters();
 			stmt.setString(1, id);
 			stmt.setString(2, name);
-			stmt.setString(3, fullAddress);
-			stmt.setString(4, city);
-			stmt.setString(5, state);
-			stmt.setFloat(6, latitude);
-			stmt.setFloat(7, longitude);
-			stmt.setString(8, open);
-			stmt.setInt(9, reviewCount);
-			stmt.setDouble(10, stars);
-			stmt.setString(11, type);
+			stmt.setString(3, city);
+			stmt.setString(4, state);
+			stmt.setString(5, open);
+			stmt.setInt(6, reviewCount);
+			stmt.setDouble(7, stars);
+			stmt.setString(8, type);
 			stmt.addBatch();
 		} catch (SQLException e) {
 			System.out.println("Exception while creating PreparedStatement for INSERT INTO business: " + e.getMessage());
@@ -134,8 +128,6 @@ public class BusinessParser {
 						System.out.println("Exception while creating PreparedStatement for INSERT INTO bu_category: " + e.getMessage());
 					}
 					nextId += 1;
-				} else {
-//					SUBCATEGORIES.add(buCategories.getString(i));
 				}
 			}
 		}

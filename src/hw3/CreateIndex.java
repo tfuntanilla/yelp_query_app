@@ -7,6 +7,7 @@ public class CreateIndex {
     public static void createIndex(Connection connection) {
 
         try {
+            System.out.println("Indexing...");
 
             Statement stmt = connection.createStatement();
 

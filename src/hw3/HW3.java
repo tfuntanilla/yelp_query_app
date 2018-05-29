@@ -81,6 +81,10 @@ public class HW3 extends JDialog {
     private JLabel novValLabel;
     private JPanel queryPanel;
     private JTextArea queryTextArea;
+    private JTextArea parametersTextArea;
+    private JLabel parametersLabel;
+    private JScrollPane queryScrollPane;
+    private JScrollPane parametersScrollPane;
 
     private JPanel lastPanel;
     private JPanel resultsPanel;
@@ -90,7 +94,6 @@ public class HW3 extends JDialog {
     private JPanel buttons;
     private JButton buSearchButton;
     private JButton userSearchButton;
-    private JButton buttonClear;
     private JButton buttonCancel;
 
     private String BU_SEARCH_CRITERIA = "OR";
@@ -109,7 +112,7 @@ public class HW3 extends JDialog {
 
         setContentPane(contentPane);
         setModal(true);
-        getRootPane().setDefaultButton(buttonClear);
+        getRootPane().setDefaultButton(buttonCancel);
 
         userSearchButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -120,12 +123,6 @@ public class HW3 extends JDialog {
         buSearchButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 onBusinessSearch(connection);
-            }
-        });
-
-        buttonClear.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                onClear();
             }
         });
 
@@ -312,6 +309,8 @@ public class HW3 extends JDialog {
         attributesPane.setPreferredSize(new Dimension(250, 200));
         reviewPanel.setPreferredSize(new Dimension(250, 500));
         resultsPanel.setPreferredSize(new Dimension(750, 250));
+        queryScrollPane.setPreferredSize(new Dimension(500, 250));
+        parametersScrollPane.setPreferredSize(new Dimension(500, 250));
 
         // Add to UI
         // TODO AND Search for business
@@ -330,9 +329,16 @@ public class HW3 extends JDialog {
                         checkedCategories.add(categoryName);
                     } else {
                         checkedCategories.remove(categoryName);
-                        // TODO Clear checked subcategories
+
+                        checkedSubcategories.clear();
+                        checkedAttributes.clear();
+
+                        // Clear in the UI
+                        JList blankList = new JList();
+                        attributesPane.add(blankList);
+                        attributesPane.setViewportView(blankList);
+                        attributesPane.repaint();
                     }
-                    System.out.println("Checked categories: " + Arrays.asList(checkedCategories).toString());
 
                     // Add to UI
                     JList subcategoryList = new JList();
@@ -357,10 +363,8 @@ public class HW3 extends JDialog {
                                     checkedSubcategories.add(subcategoryName);
                                 } else {
                                     checkedSubcategories.remove(subcategoryName);
-                                    // TODO Clear checked attributes
+                                    checkedAttributes.clear();
                                 }
-                                System.out.println("Checked subcategories: " +
-                                        Arrays.asList(checkedSubcategories).toString());
 
                                 // Add to UI
                                 JList attributesList = new JList();
@@ -388,8 +392,7 @@ public class HW3 extends JDialog {
                                             } else {
                                                 checkedAttributes.remove(attribute);
                                             }
-                                            System.out.println("Checked attributes: " +
-                                                    Arrays.asList(checkedAttributes).toString());
+
                                         }
                                     });
                                     attributesList.add(checkBox);
@@ -463,18 +466,6 @@ public class HW3 extends JDialog {
 
     private void onUserSearch(Connection conn) {
         userSearch(conn);
-    }
-
-    private void onClear() {
-        checkedCategories.clear();
-        checkedSubcategories.clear();
-        checkedAttributes.clear();
-        BU_SEARCH_CRITERIA = "OR";
-        USER_SEARCH_CRITERIA = "OR";
-        reviewDateFrom = null;
-        reviewDateTo = null;
-        memberSinceDate = null;
-
     }
 
     private void onCancel() {
@@ -637,7 +628,7 @@ public class HW3 extends JDialog {
 
                 String sql = "SELECT DISTINCT C.ATTR_NAME, C.ATTR_VALUE FROM BU_CATEGORY A, BU_SUBCATEGORY B, " +
                         "BU_ATTRIBUTE C WHERE ((" + categoryClause + ") AND (" + subcategoryClause + ") AND " +
-                        "(B.BU_ID = C.BU_ID)) ORDER BY C.ATTR_NAME";
+                        "(A.BU_ID = C.BU_ID) AND (B.BU_ID = C.BU_ID)) ORDER BY C.ATTR_NAME";
 
                 PreparedStatement ps = conn.prepareStatement(sql);
                 int id = 0;
@@ -889,8 +880,10 @@ public class HW3 extends JDialog {
             // Get name, city, state, and stars of each bu_id
             String sql = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") " +
                     "ORDER BY STARS DESC";
+
             System.out.println(sql);
-            System.out.println(Arrays.asList(items).toString());
+            System.out.println(Arrays.asList(items).toString().replace("[", "").replace("]", ""));
+
             PreparedStatement ps = conn.prepareStatement(sql);
             for (int i = 1; i <= items.size(); i++) {
                 ps.setString(i, items.get(i - 1));
@@ -916,6 +909,9 @@ public class HW3 extends JDialog {
 
             }
 
+            queryTextArea.setText(sql);
+            parametersTextArea.setText(Arrays.asList(items).toString().replace("[", "").replace("]", ""));
+
         } catch (SQLException e) {
             System.out.println("Exception while querying for businesses: " + e.getMessage());
         }
@@ -934,10 +930,10 @@ public class HW3 extends JDialog {
             }
             rs1.close();
 
-            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
+            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS, R.USEFUL, R.FUNNY, R.COOL FROM YELP_USER Y, REVIEW R WHERE " +
                     "(R.BU_ID = '" + buId + "') AND (R.USER_ID = Y.USER_ID)";
 
-            reviewSearch(conn, sql2);
+            reviewSearch(conn, sql1, sql2);
 
         } catch (SQLException e) {
             System.out.println("Exception while querying for business reviews: " + e.getMessage());
@@ -958,10 +954,10 @@ public class HW3 extends JDialog {
             }
             rs1.close();
 
-            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.STARS FROM YELP_USER Y, REVIEW R WHERE " +
+            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS, R.USEFUL, R.FUNNY, R.COOL FROM YELP_USER Y, REVIEW R WHERE " +
                     "(Y.USER_ID = '" + userId + "' AND R.USER_ID = '" + userId + "')";
 
-            reviewSearch(conn, sql2);
+            reviewSearch(conn, sql1, sql2);
 
         } catch (SQLException e) {
             System.out.println("Exception while querying for user reviews: " + e.getMessage());
@@ -970,8 +966,9 @@ public class HW3 extends JDialog {
 
     }
 
-    private void reviewSearch(Connection conn, String sql) {
+    private void reviewSearch(Connection conn, String firstSql, String sql) {
 
+        System.out.println("------------------------------------------------------------");
         System.out.print("Searching... ");
         try {
 
@@ -1000,7 +997,10 @@ public class HW3 extends JDialog {
                 sql += " AND (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
                 filterByVotes = true;
             }
+
+            queryTextArea.setText(firstSql + "\n\n" + sql);
             System.out.println(sql);
+            parametersTextArea.setText("");
 
             // set values
             PreparedStatement ps = conn.prepareStatement(sql);
@@ -1040,7 +1040,7 @@ public class HW3 extends JDialog {
         System.out.print("Searching... ");
         try {
 
-            String sql = "SELECT Y.USER_NAME, Y.YELPING_SINCE, Y.AVG_STARS FROM YELP_USER Y";
+            String sql = "SELECT Y.USER_NAME, Y.YELPING_SINCE, Y.AVG_STARS, Y.NUM_OF_FRIENDS, Y.NUM_OF_VOTES FROM YELP_USER Y";
 
             boolean filterByMemberSince = false;
             String memberSinceAttr = "";
@@ -1107,6 +1107,7 @@ public class HW3 extends JDialog {
             }
 
             System.out.println(sql);
+            queryTextArea.setText(sql);
             PreparedStatement ps = conn.prepareStatement(sql);
 
             int id = 0;
