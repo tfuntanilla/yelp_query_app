@@ -1178,9 +1178,6 @@ public class HW3 extends JDialog {
                 for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
                     if (rs.getObject(columnIndex) instanceof Clob) {
                         String str = rs.getString(columnIndex);
-                        if (str.length() > 100) {
-                            str = str.substring(0, 100) + "...";
-                        }
                         vector.add(str);
                     } else if (rs.getObject(columnIndex) instanceof Date) {
                         String date = rs.getDate(columnIndex).toString();

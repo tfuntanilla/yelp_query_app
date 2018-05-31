@@ -1,16 +1,7 @@
 package hw3;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.net.URL;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.*;
+import java.sql.*;
 
 public class Populate {
 
@@ -51,31 +42,49 @@ public class Populate {
             }
 
             // Clear rows before populating
-            truncate(connection);
+            clearTable(connection);
 
-            URL path = null;
+            String currFile = "", file1 = "", file2 = "", file3 = "";
             File jsonFile;
             BufferedReader reader;
             try {
 
-                path = Populate.class.getResource("yelp_business.json");
-                jsonFile = new File(path.getFile());
+                // need to read and insert these in order because of constraints
+                for (String arg : args) {
+                    if (arg.equals("yelp_business.json")) {
+                        file1 = arg;
+                    }
+                    if (arg.equals("yelp_user.json")) {
+                        file2 = arg;
+                    }
+                    if (arg.equals("yelp_review.json")) {
+                        file3 = arg;
+                    }
+                }
+
+                if (file1.equals("") || file2.equals("") || file3.equals("")) {
+                    System.out.println("You are missing a required file from the program arguments!");
+                    System.exit(-1);
+                }
+
+                currFile = file1;
+                jsonFile = new File(file1);
                 reader = new BufferedReader(new FileReader(jsonFile));
                 System.out.println("Parsing yelp_business.json...");
                 BusinessParser.parse(connection, reader);
                 System.out.println("Done.\n");
                 reader.close();
 
-                path = Populate.class.getResource("yelp_user.json");
-                jsonFile = new File(path.getFile());
+                currFile = file2;
+                jsonFile = new File(file2);
                 reader = new BufferedReader(new FileReader(jsonFile));
                 System.out.println("Parsing yelp_user.json...");
                 UserParser.parse(connection, reader);
                 System.out.println("Done.\n");
                 reader.close();
 
-                path = Populate.class.getResource("yelp_review.json");
-                jsonFile = new File(path.getFile());
+                currFile = file3;
+                jsonFile = new File(file3);
                 reader = new BufferedReader(new FileReader(jsonFile));
                 System.out.println("Parsing yelp_review.json... this will take a few seconds. Please wait...");
                 ReviewParser.parse(connection, reader);
@@ -86,7 +95,7 @@ public class Populate {
                 System.out.println("Not parsing yelp_checkin.json - nothing needed from this file.\n");
 
             } catch (FileNotFoundException e) {
-                System.out.println("File '" + path.getFile() + "' not found.");
+                System.out.println("File '" + currFile + "' not found.");
                 System.exit(-1);
             } catch (IOException e) {
                 System.out.println("Exception while closing reader: " + e.getMessage());
@@ -132,25 +141,27 @@ public class Populate {
         return isExists;
     }
 
-    private static void truncate(Connection connection) {
+    private static void clearTable(Connection connection) {
 
         Statement stmt = null;
         ResultSet rs = null;
         try {
             stmt = connection.createStatement();
             for (String table : Constants.TABLES) {
-                String query = "TRUNCATE TABLE " + table;
+                String query = "DELETE FROM " + table.toUpperCase();
+                System.out.println("Clearing table..." + query);
                 rs = stmt.executeQuery(query);
             }
+            System.out.println("Done.\n");
         } catch (SQLException e) {
-            System.out.println("Exception on TRUNCATE: " + e.getMessage());
+            System.out.println("Exception on DELETE: " + e.getMessage());
         } finally {
             try {
                 if (stmt != null) {
                     stmt.close();
                 }
             } catch (SQLException e) {
-                System.out.println("Exception while closing truncate statement: " + e.getMessage());
+                System.out.println("Exception while closing clearTable statement: " + e.getMessage());
             }
             try {
                 if (rs != null) {

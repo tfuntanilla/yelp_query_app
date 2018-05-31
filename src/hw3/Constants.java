@@ -11,13 +11,14 @@ public class Constants {
 	public static final String ORACLE_URL = "jdbc:oracle:thin:@//" + HOST + ":" + PORT + "/" + SERVICE_NAME;
 	
 	public static final String[] TABLES = {
-			"business",
-			"category",
-			"bu_category",
-			"bu_subcategory",
-			"bu_attribute",
+			"review",
 			"yelp_user",
-			"review"
+			"bu_attribute",
+			"bu_subcategory",
+			"bu_category",
+			"category",
+			"business"
+
 	};
 	
 	public static final String[] CATEGORIES = {
