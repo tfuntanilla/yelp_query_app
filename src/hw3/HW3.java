@@ -327,6 +327,15 @@ public class HW3 extends JDialog {
                     String categoryName = check.getText();
                     if (e.getStateChange() == 1) {
                         checkedCategories.add(categoryName);
+                        checkedSubcategories.clear();
+                        checkedAttributes.clear();
+
+                        // Clear in the UI
+                        JList blankList = new JList();
+                        attributesPane.add(blankList);
+                        attributesPane.setViewportView(blankList);
+                        attributesPane.repaint();
+
                     } else {
                         checkedCategories.remove(categoryName);
 
@@ -878,7 +887,7 @@ public class HW3 extends JDialog {
         System.out.println("Searching... ");
         try {
             // Get name, city, state, and stars of each bu_id
-            String sql = "SELECT DISTINCT NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") " +
+            String sql = "SELECT DISTINCT BU_ID, NAME, CITY, STATE, STARS FROM BUSINESS WHERE BU_ID IN (" + inClause + ") " +
                     "ORDER BY STARS DESC";
 
             System.out.println(sql);
@@ -901,8 +910,8 @@ public class HW3 extends JDialog {
                 resultsTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
                     public void valueChanged(ListSelectionEvent event) {
                         if (resultsTable.getSelectedRow() > -1) {
-                            String buName = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
-                            reviewSearchByBU(conn, buName);
+                            String buId = resultsTable.getValueAt(resultsTable.getSelectedRow(), 0).toString();
+                            reviewSearchByBU(conn, buId);
                         }
                     }
                 });
@@ -918,63 +927,39 @@ public class HW3 extends JDialog {
         System.out.print("Done.\n");
     }
 
-    private void reviewSearchByBU(Connection conn, String businessName) {
+    private void reviewSearchByBU(Connection conn, String buId) {
 
-        try {
-            String sql1 = "SELECT BU_ID FROM BUSINESS WHERE (NAME = '" + businessName + "')";
-            Statement stmt1 = conn.createStatement();
-            ResultSet rs1 = stmt1.executeQuery(sql1);
-            String buId = "";
-            while (rs1.next()) {
-                buId = rs1.getString("BU_ID");
-            }
-            rs1.close();
+        String sql = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS, R.USEFUL, R.FUNNY, R.COOL FROM YELP_USER Y, REVIEW R WHERE " +
+                "(R.BU_ID = '" + buId + "') AND (R.USER_ID = Y.USER_ID)";
 
-            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS, R.USEFUL, R.FUNNY, R.COOL FROM YELP_USER Y, REVIEW R WHERE " +
-                    "(R.BU_ID = '" + buId + "') AND (R.USER_ID = Y.USER_ID)";
-
-            reviewSearch(conn, sql1, sql2);
-
-        } catch (SQLException e) {
-            System.out.println("Exception while querying for business reviews: " + e.getMessage());
-        }
-        System.out.println("Done.");
+        reviewSearch(conn, sql, "business");
 
     }
 
-    private void reviewSearchByUser(Connection conn, String userName) {
+    private void reviewSearchByUser(Connection conn, String userId) {
 
-        try {
-            String sql1 = "SELECT USER_ID FROM YELP_USER WHERE (USER_NAME = '" + userName + "')";
-            Statement stmt1 = conn.createStatement();
-            ResultSet rs1 = stmt1.executeQuery(sql1);
-            String userId = "";
-            while (rs1.next()) {
-                userId = rs1.getString("USER_ID");
-            }
-            rs1.close();
+        String sql = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS, R.USEFUL, R.FUNNY, R.COOL FROM YELP_USER Y, REVIEW R WHERE " +
+                "(Y.USER_ID = '" + userId + "' AND R.USER_ID = '" + userId + "')";
 
-            String sql2 = "SELECT Y.USER_NAME, R.REVIEW_DATE, R.TEXT_CONTENT, R.STARS, R.USEFUL, R.FUNNY, R.COOL FROM YELP_USER Y, REVIEW R WHERE " +
-                    "(Y.USER_ID = '" + userId + "' AND R.USER_ID = '" + userId + "')";
-
-            reviewSearch(conn, sql1, sql2);
-
-        } catch (SQLException e) {
-            System.out.println("Exception while querying for user reviews: " + e.getMessage());
-        }
-        System.out.println("Done.");
+        reviewSearch(conn, sql, "user");
 
     }
 
-    private void reviewSearch(Connection conn, String firstSql, String sql) {
+    private void reviewSearch(Connection conn, String sql, String searchType) {
 
         System.out.println("------------------------------------------------------------");
         System.out.print("Searching... ");
+        String searchCriteria = "";
+        if (searchType.equals("user")) {
+            searchCriteria = USER_SEARCH_CRITERIA;
+        } else {
+            searchCriteria = BU_SEARCH_CRITERIA;
+        }
         try {
-
+            String filters = "";
             boolean filterByDate = false;
             if (reviewDateFrom != null) {
-                sql += " AND (R.REVIEW_DATE >= ? AND R.REVIEW_DATE <= ?)";
+                filters += " " + searchCriteria + " (R.REVIEW_DATE >= ? AND R.REVIEW_DATE <= ?)";
                 if (reviewDateTo == null) {
                     reviewDateTo = new Date();
                 }
@@ -983,23 +968,28 @@ public class HW3 extends JDialog {
 
             boolean filterByStars = false;
             String starsOp = (String) reviewStarsComboBox.getSelectedItem();
-            String stars = (String) reviewStarsValue.getText();
+            String stars = reviewStarsValue.getText();
             if (!starsOp.equals("Select operator") && !stars.equals("")) {
-                sql += " AND (R.STARS " + starsOp + " ?)";
+                filters += " " + searchCriteria + " (R.STARS " + starsOp + " ?)";
                 filterByStars = true;
             }
 
             boolean filterByVotes = false;
             String voteOp = (String) reviewVoteOpComboBox.getSelectedItem();
             String voteType = (String) reviewVoteComboBox.getSelectedItem();
-            String voteValue = (String) reviewVoteValue.getText();
+            String voteValue = reviewVoteValue.getText();
             if (!voteType.equals("Select vote type") && !voteOp.equals("Select operator") && !voteValue.equals("")) {
-                sql += " AND (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
+                filters += " " + searchCriteria + " (R." + voteType.toUpperCase() + " " + voteOp + " ?)";
                 filterByVotes = true;
             }
 
-            queryTextArea.setText(firstSql + "\n\n" + sql);
+            if (!filters.equals("")) {
+                filters = filters.substring(searchCriteria.length() + 2);
+                sql += " AND (" + filters + ")";
+            }
+
             System.out.println(sql);
+            queryTextArea.setText(sql);
             parametersTextArea.setText("");
 
             // set values
@@ -1032,6 +1022,7 @@ public class HW3 extends JDialog {
         } catch(SQLException e) {
             System.out.println("Exception while querying for reviews: " + e.getMessage());
         }
+        System.out.println("Done.");
 
     }
 
@@ -1040,7 +1031,7 @@ public class HW3 extends JDialog {
         System.out.print("Searching... ");
         try {
 
-            String sql = "SELECT Y.USER_NAME, Y.YELPING_SINCE, Y.AVG_STARS, Y.NUM_OF_FRIENDS, Y.NUM_OF_VOTES FROM YELP_USER Y";
+            String sql = "SELECT Y.USER_ID, Y.USER_NAME, Y.YELPING_SINCE, Y.REVIEW_COUNT, Y.AVG_STARS, Y.NUM_OF_FRIENDS, Y.NUM_OF_VOTES FROM YELP_USER Y";
 
             boolean filterByMemberSince = false;
             String memberSinceAttr = "";
@@ -1051,7 +1042,7 @@ public class HW3 extends JDialog {
 
             boolean filterByReviewCount = false;
             String rcOp = (String) userReviewCountComboBox.getSelectedItem();
-            String reviewCount = (String) userReviewCountValue.getText();
+            String reviewCount = userReviewCountValue.getText();
             String reviewCountAttr = "";
             if (!rcOp.equals("Select operator") && !reviewCount.equals("")) {
                 reviewCountAttr = "(Y.REVIEW_COUNT " + rcOp + " ?)";
@@ -1060,7 +1051,7 @@ public class HW3 extends JDialog {
 
             boolean filterByNumberOfFriends = false;
             String nofOp = (String) userNOFComboBox.getSelectedItem();
-            String nof = (String) userNOFValue.getText();
+            String nof = userNOFValue.getText();
             String nofAttr = "";
             if (!nofOp.equals("Select operator") && !nof.equals("")) {
                 nofAttr = "(Y.NUM_OF_FRIENDS " + nofOp + " ?)";
@@ -1069,7 +1060,7 @@ public class HW3 extends JDialog {
 
             boolean filterByAvgStars = false;
             String avgStarsOp = (String) userAvgStarsComboBox.getSelectedItem();
-            String avgStars = (String) userAvgStarsValue.getText();
+            String avgStars = userAvgStarsValue.getText();
             String avgStarsAttr = "";
             if (!avgStarsOp.equals("Select operator") && !avgStars.equals("")) {
                 avgStarsAttr = "(Y.AVG_STARS " + avgStarsOp + " ?)";
@@ -1078,7 +1069,7 @@ public class HW3 extends JDialog {
 
             boolean filterByNumberOfVotes = false;
             String novOp = (String) userNOVComboBox.getSelectedItem();
-            String nov = (String) userNOVValue.getText();
+            String nov = userNOVValue.getText();
             String novAttr = "";
             if (!novOp.equals("Select operator") && !nov.equals("")) {
                 novAttr = "(Y.NUM_OF_VOTES " + novOp + " ?)";
